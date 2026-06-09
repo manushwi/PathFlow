@@ -50,17 +50,37 @@ async def get_issues(workspace_id: int, request: Request, db: AsyncSession = Dep
             continue
         num = issue["number"]
         cl = class_map.get(num, {})
+        difficulty = cl.get("difficulty", "intermediate")
+        estimated_hours = cl.get("estimated_hours")
+        skills_required = cl.get("skills_required", [])
         issues.append({
             "number": num, "title": issue["title"],
             "body": (issue.get("body") or "")[:500],
             "state": issue["state"],
             "labels": [l["name"] for l in issue.get("labels", [])],
             "html_url": issue.get("html_url"),
-            "difficulty": cl.get("difficulty", "intermediate"),
-            "estimated_hours": cl.get("estimated_hours"),
-            "skills_required": cl.get("skills_required", []),
+            "difficulty": difficulty,
+            "estimated_hours": estimated_hours,
+            "skills_required": skills_required,
             "learning_value": cl.get("learning_value", "medium"),
         })
+        # Persist to DB
+        existing_issue = await db.execute(
+            select(Issue).where(Issue.workspace_id == workspace_id, Issue.gh_number == num)
+        )
+        if not existing_issue.scalar_one_or_none():
+            db.add(Issue(
+                workspace_id=workspace_id,
+                gh_number=num,
+                title=issue["title"],
+                body=(issue.get("body") or "")[:5000],
+                state=issue["state"],
+                labels=[l["name"] for l in issue.get("labels", [])],
+                difficulty=difficulty,
+                estimated_hours=estimated_hours,
+                skills_required=skills_required,
+            ))
+    await db.commit()
     response = {"issues": issues}
     await cache_set(cache_key, response, CACHE_TTL_ISSUES)
     return response

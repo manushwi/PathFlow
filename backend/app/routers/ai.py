@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import StreamingResponse
+from app.services.rate_limiter import check_rate_limit, get_client_key
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -9,12 +10,13 @@ from app.models.user import User
 from app.services.ai_service import chat_stream, get_embedding, chat_complete_json
 from app.services.vector_service import search_similar
 from shared.prompts import build_chat_prompt, SYSTEM_AI_SOLVER
-import json, asyncio
+import json
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 @router.post("/chat")
 async def stream_chat(request: Request, db: AsyncSession = Depends(get_db)):
+    check_rate_limit(get_client_key(request), max_requests=30, window_seconds=60)
     user: User = await get_current_user(request, db)
     body = await request.json()
     workspace_id = body["workspace_id"]
@@ -36,22 +38,16 @@ async def stream_chat(request: Request, db: AsyncSession = Depends(get_db)):
     messages = build_chat_prompt(message, context_chunks, history, workspace_info)
     db.add(ChatMessage(workspace_id=workspace_id, role="user", content=message))
     await db.commit()
-    full_response = []
     async def generate():
         system = messages[0]["content"] if messages and messages[0]["role"] == "system" else ""
         chat_msgs = [m for m in messages if m["role"] != "system"] if messages else []
+        full_text = ""
         async for chunk in chat_stream(chat_msgs, system):
-            full_response.append(chunk)
+            full_text += chunk
             yield f"data: {json.dumps({'text': chunk})}\n\n"
+        db.add(ChatMessage(workspace_id=workspace_id, role="assistant", content=full_text))
+        await db.commit()
         yield f"data: {json.dumps({'done': True})}\n\n"
-    async def save_response():
-        await asyncio.sleep(0.1)
-        if full_response:
-            async with AsyncSession(db.get_bind()) as save_db:
-                save_db.add(ChatMessage(workspace_id=workspace_id, role="assistant",
-                                        content="".join(full_response)))
-                await save_db.commit()
-    asyncio.create_task(save_response())
     return StreamingResponse(generate(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
@@ -66,6 +62,7 @@ async def get_chat_history(workspace_id: int, request: Request, db: AsyncSession
 
 @router.post("/solve-issue")
 async def solve_issue(request: Request, db: AsyncSession = Depends(get_db)):
+    check_rate_limit(get_client_key(request), max_requests=10, window_seconds=60)
     user: User = await get_current_user(request, db)
     body = await request.json()
     workspace_id = body["workspace_id"]

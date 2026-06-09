@@ -20,7 +20,7 @@ async def chat_complete(messages: list[dict], system: str = "") -> str:
         r = await client.post(
             f"{OPENROUTER_BASE}/chat/completions",
             headers={"Authorization": f"Bearer {settings.openrouter_api_key}",
-                     "HTTP-Referer": "https://patchflow.dev"},
+                     "HTTP-Referer": settings.app_url},
             json={"model": settings.openrouter_model, "messages": msgs},
         )
         return r.json()["choices"][0]["message"]["content"]
@@ -32,7 +32,7 @@ async def chat_stream(messages: list[dict], system: str = "") -> AsyncGenerator[
             "POST",
             f"{OPENROUTER_BASE}/chat/completions",
             headers={"Authorization": f"Bearer {settings.openrouter_api_key}",
-                     "HTTP-Referer": "https://patchflow.dev"},
+                     "HTTP-Referer": settings.app_url},
             json={"model": settings.openrouter_model, "messages": msgs, "stream": True},
         ) as response:
             async for line in response.aiter_lines():
@@ -51,5 +51,15 @@ async def chat_stream(messages: list[dict], system: str = "") -> AsyncGenerator[
 async def chat_complete_json(messages: list[dict], system: str = "") -> dict:
     sys_prompt = (system or "") + "\n\nRespond ONLY with valid JSON. No markdown, no explanation."
     result = await chat_complete(messages, sys_prompt)
-    clean = result.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(clean)
+    clean = result.strip()
+    for prefix in ["```json", "```"]:
+        if clean.startswith(prefix):
+            clean = clean[len(prefix):]
+    for suffix in ["```"]:
+        if clean.endswith(suffix):
+            clean = clean[:-len(suffix)]
+    clean = clean.strip()
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError:
+        return {"error": "Failed to parse AI response", "raw": clean[:500]}

@@ -89,7 +89,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-white/10 px-6 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm text-[#c2c6d6]">© 2024 PatchFlow AI. Open Source under MIT.</p>
+          <p className="text-sm text-[#c2c6d6]">© 2026 PatchFlow AI. Open Source under MIT.</p>
           <div className="flex gap-6 text-sm text-[#c2c6d6]">
             <a href="#" className="transition-colors hover:text-[#adc6ff]">Privacy</a>
             <a href="#" className="transition-colors hover:text-[#adc6ff]">Terms</a>

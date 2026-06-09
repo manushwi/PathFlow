@@ -16,35 +16,46 @@ STACK_INDICATORS = {
 
 @app.task(bind=True, name="tasks.parse")
 def parse_repo(self, prev_result: dict):
-    workspace_id = prev_result["workspace_id"]
-    repo_path = prev_result["repo_path"]
-    self.update_state(state="PROGRESS", meta={"status": "parsing", "progress": 25})
-    file_tree = {}
-    all_files = []
-    tech_stack = {}
-    for root, dirs, files in os.walk(repo_path):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-        rel_root = os.path.relpath(root, repo_path)
-        for fname in files:
-            fpath = os.path.join(root, fname)
-            rel_path = os.path.join(rel_root, fname).replace("\\", "/").lstrip("./")
-            ext = os.path.splitext(fname)[1]
-            if ext in CODE_EXTENSIONS:
-                size = os.path.getsize(fpath)
-                all_files.append({"path": rel_path, "ext": ext, "size": size})
-                for indicator, stack_name in STACK_INDICATORS.items():
-                    if indicator in rel_path.lower():
-                        tech_stack[stack_name] = True
-    tree = {}
-    for f in all_files:
-        parts = f["path"].split("/")
-        node = tree
-        for part in parts[:-1]:
-            node = node.setdefault(part, {})
-        node[parts[-1]] = {"type": "file", "size": f["size"], "ext": f["ext"]}
-    _save_parse_results(workspace_id, tree, tech_stack)
-    return {"workspace_id": workspace_id, "repo_path": repo_path,
-            "all_files": all_files, "tech_stack": list(tech_stack.keys())}
+    try:
+        workspace_id = prev_result["workspace_id"]
+        repo_path = prev_result["repo_path"]
+        self.update_state(state="PROGRESS", meta={"status": "parsing", "progress": 25})
+        file_tree = {}
+        all_files = []
+        tech_stack = {}
+        for root, dirs, files in os.walk(repo_path):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            rel_root = os.path.relpath(root, repo_path)
+            for fname in files:
+                fpath = os.path.join(root, fname)
+                rel_path = os.path.join(rel_root, fname).replace("\\", "/")
+                if rel_path.startswith("./"):
+                    rel_path = rel_path[2:]
+                ext = os.path.splitext(fname)[1]
+                if ext in CODE_EXTENSIONS:
+                    size = os.path.getsize(fpath)
+                    all_files.append({"path": rel_path, "ext": ext, "size": size})
+                    for indicator, stack_name in STACK_INDICATORS.items():
+                        if indicator in rel_path.lower():
+                            tech_stack[stack_name] = True
+        tree = {}
+        for f in all_files:
+            parts = f["path"].split("/")
+            node = tree
+            for part in parts[:-1]:
+                node = node.setdefault(part, {})
+            node[parts[-1]] = {"type": "file", "size": f["size"], "ext": f["ext"]}
+        _save_parse_results(workspace_id, tree, tech_stack)
+        return {"workspace_id": workspace_id, "repo_path": repo_path,
+                "all_files": all_files, "tech_stack": list(tech_stack.keys())}
+    except Exception:
+        from sqlalchemy import update
+        from app.models.workspace import Workspace
+        engine = get_sync_engine()
+        with engine.connect() as conn:
+            conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
+            conn.commit()
+        raise
 
 from db_utils import get_sync_engine
 

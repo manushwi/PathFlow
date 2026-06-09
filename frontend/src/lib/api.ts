@@ -42,6 +42,9 @@ export const api = {
         method: "POST", body: JSON.stringify({ files }) }),
     getOpenFiles: (workspaceId: number) =>
       apiFetch(`/api/workspace/${workspaceId}/files/open-files`),
+    save: (workspaceId: number, path: string, content: string) =>
+      apiFetch(`/api/workspace/${workspaceId}/files/content`, {
+        method: "POST", body: JSON.stringify({ path, content }) }),
   },
   ai: {
     chatHistory: (workspaceId: number) => apiFetch(`/api/ai/chat/${workspaceId}/history`),
@@ -60,5 +63,8 @@ export const api = {
     createPR: (workspaceId: number, title: string, body: string) =>
       apiFetch("/api/git/pr/create", { method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, title, body }) }),
+    createBranch: (workspaceId: number, branchName: string) =>
+      apiFetch("/api/git/branch", { method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, name: branchName }) }),
   },
 };

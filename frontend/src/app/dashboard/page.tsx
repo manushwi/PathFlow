@@ -41,6 +41,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import useSWR from "swr";
 import { api } from "@/lib/api";
+import { SkillDialog } from "@/components/dashboard/SkillDialog";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const { user, isLoading: authLoading, isAuthenticated, signout } = useAuth();
@@ -55,6 +57,19 @@ export default function Dashboard() {
     () => api.workspace.list(),
   );
 
+  const { data: activity } = useSWR(
+    isAuthenticated ? "/activity" : null,
+    () => api.workspace.list().then(ws =>
+      (ws || []).slice(0, 5).map((w: any) => ({
+        dot: w.status === "ready" ? "bg-green-500" : w.status === "error" ? "bg-red-500" : "bg-yellow-500",
+        text: w.status === "ready" ? "Workspace " : w.status === "error" ? "Failed: " : "Analyzing ",
+        code: w.repo_name,
+        codeColor: w.status === "ready" ? "text-green-500" : w.status === "error" ? "text-red-500" : "text-yellow-500",
+        time: w.last_active ? new Date(w.last_active).toLocaleDateString() : "recent",
+      }))
+    ),
+  );
+
   const handleCreate = async () => {
     if (!repoUrl.trim()) return;
     setCreating(true);
@@ -64,9 +79,11 @@ export default function Dashboard() {
       setCreateOpen(false);
       setRepoUrl("");
       refreshWorkspaces();
+      toast.success("Workspace created", { description: "Analysis pipeline started" });
       router.push(`/workspace/${ws.id}`);
     } catch (e: any) {
       setCreateError(e.message || "Failed to create workspace");
+      toast.error("Failed to create workspace", { description: e.message });
     } finally {
       setCreating(false);
     }
@@ -85,6 +102,8 @@ export default function Dashboard() {
     { dot: "bg-blue-400", text: 'PR #122 approved by ', code: "@adamwathan", codeColor: "text-blue-400", time: "1 hour ago" },
     { dot: "bg-orange-400", text: "Workspace ", code: "next-js-99", codeColor: "text-orange-400", time: "3 hours ago", last: true },
   ];
+
+  const displayActivity = activity || recentActivity;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
@@ -122,10 +141,10 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="fixed left-0 top-14 z-40 flex h-[calc(100vh-3.5rem)] w-16 flex-col border-r border-[#424754]/20 bg-[#0b0e15] md:w-64">
           <div className="flex flex-col gap-1 p-4">
-            <SidebarItem icon={LayoutDashboard} label="Dashboard" active />
-            <SidebarItem icon={GitBranch} label="Explainer" onClick={() => {}} />
-            <SidebarItem icon={Columns3} label="Issues" onClick={() => {}} />
-            <SidebarItem icon={Code2} label="Editor" onClick={() => {}} />
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active onClick={() => router.push("/dashboard")} />
+            <SidebarItem icon={GitBranch} label="Explainer" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}`)} />
+            <SidebarItem icon={Columns3} label="Issues" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}/issues`)} />
+            <SidebarItem icon={Code2} label="Editor" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}`)} />
             <SidebarItem icon={Terminal} label="Terminal" onClick={() => {}} />
           </div>
           <div className="mt-auto border-t border-[#424754]/10 p-4">
@@ -278,7 +297,7 @@ export default function Dashboard() {
                   Recent Activity
                 </h4>
                 <div className="mt-2 flex flex-col gap-6">
-                  {recentActivity.map((item, i) => (
+                  {displayActivity.map((item: any, i: number) => (
                     <div key={i} className="flex gap-4">
                       <div className="relative flex flex-col items-center">
                         <div className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
@@ -346,6 +365,8 @@ export default function Dashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SkillDialog />
     </div>
   );
 }

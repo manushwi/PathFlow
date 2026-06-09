@@ -54,7 +54,7 @@ export function IssueKanban({ workspaceId }: IssueKanbanProps) {
 
   const issues = data.issues || [];
   const filtered = filter === "all" ? issues : issues.filter((i: any) =>
-    i.labels?.some((l: string) => l.toLowerCase().includes(filter))
+    i.labels?.some((l: string) => l.toLowerCase().includes(filter.toLowerCase()))
   );
 
   const columns: Record<string, any[]> = {

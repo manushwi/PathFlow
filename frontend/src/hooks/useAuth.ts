@@ -10,6 +10,7 @@ export function useAuth() {
     user,
     isLoading: !user && !error,
     isAuthenticated: !!user,
+    mutate,
     signout: async () => {
       await api.auth.signout();
       mutate(null);

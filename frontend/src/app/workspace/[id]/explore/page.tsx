@@ -15,7 +15,8 @@ export default function WorkspaceExplorePage() {
   const params = useParams();
   const workspaceId = Number(params.id);
   const { data: ws, isLoading } = useSWR(`/workspace/${workspaceId}`, () => api.workspace.get(workspaceId), {
-    refreshInterval: (data) => data?.status !== "ready" ? 3000 : 0,
+    refreshInterval: 3000,
+    revalidateOnFocus: false,
   });
   const { data: files } = useSWR(`/files/${workspaceId}`, () => api.files.tree(workspaceId));
 

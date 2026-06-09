@@ -15,6 +15,7 @@ import git
 router = APIRouter(prefix="/api/git", tags=["git"])
 
 def get_repo(workspace_id: int) -> git.Repo:
+    """Caller must verify workspace ownership via DB before calling this."""
     path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
     if not os.path.exists(path):
         raise HTTPException(404, "Repository not found locally")
@@ -101,10 +102,11 @@ async def submit_pr(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404)
     repo = get_repo(workspace_id)
     origin = repo.remote("origin")
-    origin.set_url(ws.repo_url.replace("https://", f"https://{user.github_token}@"))
+    origin.set_url(ws.repo_url.replace("https://", f"https://x-access-token:{user.github_token}@"))
     origin.push(ws.branch)
+    repo = get_repo(workspace_id)
     pr = await create_pull_request(user.github_token, ws.repo_owner, ws.repo_name,
-                                    body["title"], body["body"], ws.branch, "main")
+                                    body["title"], body["body"], ws.branch, repo.active_branch.name)
     ws.status = "pr_submitted"
     await db.commit()
     return {"pr_url": pr.get("html_url"), "pr_number": pr.get("number")}

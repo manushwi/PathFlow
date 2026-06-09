@@ -1,0 +1,535 @@
+
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-sans); color: var(--color-text-primary); }
+.wrap { padding: 1.2rem 0; }
+.section { margin-bottom: 2rem; }
+.sec-title { font-size: 13px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-tertiary); margin: 0 0 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--color-border-tertiary); }
+.item { display: flex; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: var(--border-radius-md); margin-bottom: 0.4rem; border: 1px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.item:hover { border-color: var(--color-border-secondary); }
+.pill { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; align-self: flex-start; margin-top: 2px; }
+.pill-red { background: #FCEBEB; color: #A32D2D; }
+.pill-amber { background: #FAEEDA; color: #854F0B; }
+.pill-blue { background: #E6F1FB; color: #185FA5; }
+.pill-gray { background: #F1EFE8; color: #5F5E5A; }
+.pill-teal { background: #E1F5EE; color: #0F6E56; }
+.pill-purple { background: #EEEDFE; color: #534AB7; }
+@media (prefers-color-scheme: dark) {
+  .pill-red { background: #501313; color: #F7C1C1; }
+  .pill-amber { background: #412402; color: #FAC775; }
+  .pill-blue { background: #042C53; color: #B5D4F4; }
+  .pill-gray { background: #2C2C2A; color: #B4B2A9; }
+  .pill-teal { background: #04342C; color: #9FE1CB; }
+  .pill-purple { background: #26215C; color: #CECBF6; }
+}
+.item-body { flex: 1; min-width: 0; }
+.item-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px; }
+.item-desc { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.5; }
+.item-code { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-tertiary); margin: 3px 0 0; background: var(--color-background-tertiary); padding: 2px 6px; border-radius: 4px; display: inline-block; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem; }
+.stat-card { padding: 0.75rem 1rem; border-radius: var(--border-radius-lg); border: 1px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.stat-num { font-size: 26px; font-weight: 500; line-height: 1; }
+.stat-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-num.red { color: #E24B4A; }
+.stat-num.amber { color: #BA7517; }
+.stat-num.teal { color: #1D9E75; }
+.stat-num.purple { color: #7F77DD; }
+.tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.tab { font-size: 12px; padding: 4px 12px; border-radius: 99px; border: 1px solid var(--color-border-tertiary); cursor: pointer; color: var(--color-text-secondary); background: transparent; transition: all 0.15s; }
+.tab.active { background: var(--color-background-secondary); border-color: var(--color-border-secondary); color: var(--color-text-primary); font-weight: 500; }
+.panel { display: none; }
+.panel.active { display: block; }
+</style>
+<div class="wrap">
+  <div style="margin-bottom:1.5rem">
+    <div style="font-size:18px;font-weight:500;margin-bottom:4px">PathFlow — Full Codebase Audit</div>
+    <div style="font-size:13px;color:var(--color-text-secondary)">137 files · FastAPI backend · Next.js frontend · Celery workers</div>
+  </div>
+
+  <div class="grid2">
+    <div class="stat-card"><div class="stat-num red">14</div><div class="stat-label">Bugs / breaking issues</div></div>
+    <div class="stat-card"><div class="stat-num amber">11</div><div class="stat-label">Missing features</div></div>
+    <div class="stat-card"><div class="stat-num teal">9</div><div class="stat-label">Security concerns</div></div>
+    <div class="stat-card"><div class="stat-num purple">12</div><div class="stat-label">Improvements</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="show('bugs')">🔴 Bugs</button>
+    <button class="tab" onclick="show('security')">🔒 Security</button>
+    <button class="tab" onclick="show('missing')">🧩 Missing features</button>
+    <button class="tab" onclick="show('improvements')">✨ Improvements</button>
+    <button class="tab" onclick="show('naming')">📛 Naming</button>
+  </div>
+
+  <div id="bugs" class="panel active section">
+    <div class="sec-title">Bugs & breaking issues</div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">Worker pipeline silently swallows errors — workspace stays "pending" forever</p>
+        <p class="item-desc">If any Celery task in the chain raises an exception (clone fails, embedding API rate-limits, etc.), the <code>status</code> column is never updated to <code>"error"</code>. The frontend polls and waits forever. There is no <code>on_failure</code> handler on the chain or individual tasks.</p>
+        <span class="item-code">worker/tasks/clone_task.py · pipeline.py</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">Workspace router imports Celery tasks at request time via sys.path hack</p>
+        <p class="item-desc">The <code>POST /api/workspace</code> handler inserts the worker directory into <code>sys.path</code> at runtime and then does <code>from tasks.pipeline import run_analysis_pipeline</code>. This will break in production (worker runs in a different container), silently fails if the path is wrong, and is not tested. The correct approach is to send a Celery task message via the broker — the worker and backend should be decoupled.</p>
+        <span class="item-code">backend/app/routers/workspace.py:31–36</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">asyncio.create_task() inside StreamingResponse leaks — save_response never runs</p>
+        <p class="item-desc">The AI chat route creates a background task to save the assistant message after streaming. But <code>asyncio.create_task()</code> inside a generator that has already returned its <code>StreamingResponse</code> is not guaranteed to run — the event loop may close the scope before the task executes, and the assistant message is never saved to the DB.</p>
+        <span class="item-code">backend/app/routers/ai.py:50–56</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">git.pr/create hardcodes "main" as PR base branch — fails for repos using "master" or custom branches</p>
+        <p class="item-desc">The submit PR route calls <code>create_pull_request(..., base="main")</code> with a hardcoded string. Most modern repos use <code>main</code> but many large OSS projects still use <code>master</code> or a different default. This will cause a GitHub API 422 error with no user-facing explanation.</p>
+        <span class="item-code">backend/app/routers/git.py:80</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">cache_service.py embeds raw JSON in URL path — breaks on any value with spaces or special chars</p>
+        <p class="item-desc">The Upstash REST API is called as <code>POST /set/{key}/{value}/EX/{ttl}</code> with the JSON-serialised value literally in the URL path. Any cache value containing <code>/</code>, spaces, <code>?</code>, or <code>&amp;</code> will cause a malformed URL or incorrect routing. Should use the request body instead.</p>
+        <span class="item-code">backend/app/services/cache_service.py:9–12</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">Qdrant client instantiated at module import — crashes entire backend if Qdrant is unreachable</p>
+        <p class="item-desc"><code>client = AsyncQdrantClient(...)</code> runs at module load time. If Qdrant Cloud is down or the key is wrong, every FastAPI import chain fails and the whole server refuses to start — even routes that have nothing to do with vector search.</p>
+        <span class="item-code">backend/app/services/vector_service.py:8</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">AI chat history order is wrong — messages loaded desc, reversed, then sent to LLM</p>
+        <p class="item-desc">The route fetches the last 10 messages <code>order_by(created_at.desc()).limit(10)</code> then calls <code>reversed()</code>. This works correctly but only includes 10 messages regardless of whether important context is in older messages. More critically, if streaming fails partway, the unsaved assistant response leaves history in an inconsistent state (user message saved, assistant message lost).</p>
+        <span class="item-code">backend/app/routers/ai.py:28–31</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">Workspace deletion does not clean up local cloned repo or Qdrant vectors</p>
+        <p class="item-desc">The <code>DELETE /api/workspace/{id}</code> route deletes the DB row but leaves the cloned repo on disk (<code>/tmp/contributorios_repos/{id}/</code>) and all embedding vectors in Qdrant. This causes disk bloat and orphaned vectors that pollute future RAG searches.</p>
+        <span class="item-code">backend/app/routers/workspace.py:56–64</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">datetime.utcnow() is deprecated in Python 3.12+</p>
+        <p class="item-desc">All four model files use <code>default=lambda: datetime.utcnow()</code>. This is deprecated since Python 3.12 and will raise a warning. Should be <code>datetime.now(timezone.utc)</code>.</p>
+        <span class="item-code">backend/app/models/workspace.py, user.py, issue.py</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">parse_task.py file tree uses relative paths that include "./" prefix on some OS</p>
+        <p class="item-desc"><code>rel_path = os.path.join(rel_root, fname).lstrip("./")</code> — on Windows or when <code>rel_root</code> is <code>"."</code>, this strips too many characters. Paths like <code>"./src/main.py"</code> correctly become <code>"src/main.py"</code> but <code>"module/file.py"</code> stays correct too. However the root-level files become just <code>"file.py"</code> with no directory context, breaking FileTree rendering.</p>
+        <span class="item-code">worker/tasks/parse_task.py:24</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">GitPanel.tsx calls generatePR with hardcoded issue_number=0</p>
+        <p class="item-desc">The "Generate PR" button passes <code>workspaceId, 0, data?.diff</code> — always issue number 0. The active issue number from the workspace is never used. PR generation therefore produces generic descriptions not linked to any real issue.</p>
+        <span class="item-code">frontend/src/components/ide/GitPanel.tsx:41</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">MonacoEditor is read-only — file edits are not persisted back to disk</p>
+        <p class="item-desc">The IDE loads file content from the API but Monaco has no <code>onChange</code> handler, so user edits are never written back. The editor is effectively a read-only viewer despite appearing editable. There's also no <code>onSave</code> (Ctrl+S) handler.</p>
+        <span class="item-code">frontend/src/components/ide/IDELayout.tsx:65–75</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">IssueKanban filter for labels is case-sensitive and partial — many issues never match</p>
+        <p class="item-desc">The filter does <code>i.labels?.some(l => l.toLowerCase().includes(filter))</code> but <code>filter</code> is set from the button text directly (e.g. <code>"good first issue"</code> vs GitHub's <code>"Good first issue"</code>). Since <code>toLowerCase()</code> is only called on the label, not the filter string, mismatches happen for any filter with uppercase letters.</p>
+        <span class="item-code">frontend/src/components/issues/IssueKanban.tsx:48</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">graph_task.py builds a trivially simple static graph regardless of actual repo structure</p>
+        <p class="item-desc">The graph always produces 2–4 nodes (Frontend, API, optionally Database, optionally Auth) with no variation. For any library, CLI tool, data pipeline, or repo without a frontend, the generated React Flow graph is misleading or empty. No file-level imports or component relationships are analysed.</p>
+        <span class="item-code">worker/tasks/graph_task.py:15–48</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="security" class="panel section">
+    <div class="sec-title">Security concerns</div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">GitHub token logged in PR push URL</p>
+        <p class="item-desc">The PR create route sets the remote URL to <code>https://{user.github_token}@github.com/...</code>. GitPython may log this URL (including the token) to stdout/stderr or in error traces. Any log aggregation service will capture the plain-text token.</p>
+        <span class="item-code">backend/app/routers/git.py:73</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">Critical</span>
+      <div class="item-body">
+        <p class="item-title">GitHub token stored in plaintext in DB — no encryption at rest</p>
+        <p class="item-desc"><code>user.github_token</code> is stored as a plain <code>String(500)</code> column. If the database is compromised, all user GitHub tokens are exposed. Should be encrypted at application level (e.g. Fernet) before storage.</p>
+        <span class="item-code">backend/app/models/user.py:14</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">Session cookie has secure=False — will transmit over HTTP in production</p>
+        <p class="item-desc"><code>response.set_cookie(..., secure=False)</code> means the session cookie will be sent over plain HTTP. In any deployment behind HTTPS (Vercel, Railway) this should be <code>secure=True</code>.</p>
+        <span class="item-code">backend/app/routers/auth.py:52</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-red">High</span>
+      <div class="item-body">
+        <p class="item-title">Path traversal check in files router uses os.path.abspath but not realpath — symlink bypass possible</p>
+        <p class="item-desc">The guard <code>os.path.abspath(file_path).startswith(os.path.abspath(repo_path))</code> does not resolve symlinks. A malicious repo could create a symlink inside the cloned directory pointing to <code>/etc/passwd</code> or any other host file, and the check would pass.</p>
+        <span class="item-code">backend/app/routers/files.py:35</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">High</span>
+      <div class="item-body">
+        <p class="item-title">No rate limiting on any API endpoint</p>
+        <p class="item-desc">Any authenticated user can hit <code>POST /api/workspace</code> in a loop, triggering unlimited Celery jobs and OpenRouter API calls. No per-user workspace count limit, no per-minute rate limit on AI routes. A single bad actor can exhaust free-tier quota.</p>
+        <span class="item-code">backend/app/routers/workspace.py, ai.py</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">Workspace ownership check missing in git router's get_repo() helper</p>
+        <p class="item-desc"><code>get_repo(workspace_id)</code> just checks if the directory exists on disk — it does NOT verify the requesting user owns that workspace. An authenticated user could call <code>GET /api/git/diff/5</code> to read another user's code changes.</p>
+        <span class="item-code">backend/app/routers/git.py:17–20</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">No Content-Security-Policy or security headers configured</p>
+        <p class="item-desc">The FastAPI app has CORS configured but no CSP, X-Frame-Options, X-Content-Type-Options, or Referrer-Policy headers. Next.js also has no <code>headers()</code> config in <code>next.config.ts</code>.</p>
+        <span class="item-code">backend/main.py, frontend/next.config.ts</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Medium</span>
+      <div class="item-body">
+        <p class="item-title">OpenRouter API key sent as HTTP-Referer header — exposes domain in request logs</p>
+        <p class="item-desc">The <code>HTTP-Referer: https://patchflow.dev</code> header is sent with every AI call. This is fine for production but the hardcoded domain reveals the product name and won't match if deployed under a different domain. Should be configurable via <code>settings</code>.</p>
+        <span class="item-code">backend/app/services/ai_service.py:24, 36</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Low</span>
+      <div class="item-body">
+        <p class="item-title">No CSRF protection on state-changing POST/PATCH/DELETE routes</p>
+        <p class="item-desc">Cookie-based auth without CSRF tokens is vulnerable to cross-site request forgery. Should use <code>samesite=strict</code> (currently <code>lax</code>) or implement CSRF tokens for routes that mutate data.</p>
+        <span class="item-code">backend/app/routers/auth.py:51</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="missing" class="panel section">
+    <div class="sec-title">Missing features</div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Monaco editor writes are never saved to disk</p>
+        <p class="item-desc">The IDE is read-only. There is no <code>POST /api/workspace/{id}/files/content</code> write endpoint, no onChange handler in MonacoEditor, and no Ctrl+S save. Users cannot actually edit code despite the IDE appearance.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Workspace persistence (open files / cursor position restore) is defined but never called</p>
+        <p class="item-desc"><code>api.files.saveOpenFiles()</code> and <code>api.files.getOpenFiles()</code> exist in the API client and backend, but are never called anywhere in the frontend. The IDE has no <code>beforeunload</code> handler or restore-on-mount logic.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Skill level confirmation UI is completely absent</p>
+        <p class="item-desc">The backend has <code>PATCH /api/auth/skill</code> and the <code>skill_confirmed</code> flag, but the dashboard has no dialog, modal, or prompt asking the user to confirm or change their detected skill level. The feature was planned but not implemented.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Workspace explore page (explore/page.tsx) is a stub</p>
+        <p class="item-desc">The file exists at <code>workspace/[id]/explore/page.tsx</code> (8.9KB) but is never linked to from the workspace page. The main workspace page has tabs for Explain / Issues / Code, but the Explore route is a dead end.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">AI solve-issue endpoint exists but is never called from the frontend</p>
+        <p class="item-desc"><code>api.ai.solveIssue()</code> is defined and the backend route exists, but no UI button triggers it. The IssueExplainer panel has no "Solve with AI" button. The entire AI solver workflow is backend-only with no frontend path.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Branch creation UI is missing — all workspaces stay on "main"</p>
+        <p class="item-desc">The <code>POST /api/git/branch</code> endpoint is implemented but no frontend UI calls it. Every workspace works on the default branch; there's no way to create an issue-specific branch (e.g. <code>fix/issue-123</code>) from the UI.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Terminal panel planned but not implemented</p>
+        <p class="item-desc">The original spec includes a xterm.js terminal with WebSocket pty. The Sidebar in the dashboard has a Terminal icon. Neither the <code>backend/app/routers/terminal.py</code> nor the <code>frontend/src/components/ide/Terminal.tsx</code> component exists.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Re-analysis / re-embed on repo update not implemented</p>
+        <p class="item-desc">The <code>repo_sha</code> field exists in <code>RepoAnalysis</code> to detect stale analyses, but nothing checks it. If a repo pushes new commits, the workspace never picks them up. No "re-analyze" button exists anywhere.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Diff viewer for AI solver output is missing</p>
+        <p class="item-desc">The AI solver returns a JSON with <code>files_to_change[].diff</code> fields, but there's no DiffViewer component to display them. The solve-issue response would be raw JSON with no way to review or apply changes.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-purple">Not built</span>
+      <div class="item-body">
+        <p class="item-title">Pydantic schemas folder is completely empty</p>
+        <p class="item-desc"><code>backend/app/schemas/</code> contains only an empty <code>__init__.py</code>. All request/response validation is done with raw <code>request.json()</code> dicts. No input validation, no type coercion, no automatic 422 error responses for bad payloads.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Partial</span>
+      <div class="item-body">
+        <p class="item-title">Dashboard sidebar navigation items are non-functional buttons</p>
+        <p class="item-desc">Explainer, Issues, Editor, Terminal sidebar items have empty <code>onClick={() => {}}</code> handlers. They navigate nowhere. The sidebar has no link to workspace-specific sub-pages.</p>
+        <span class="item-code">frontend/src/app/dashboard/page.tsx:90–100</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">Partial</span>
+      <div class="item-body">
+        <p class="item-title">Activity feed on dashboard shows hardcoded fake data</p>
+        <p class="item-desc">The "Recent Activity" panel in the dashboard uses a static <code>recentActivity</code> array with hardcoded strings like <code>"Patch AI completed auth-fix"</code>. There is no real activity tracking model or API.</p>
+        <span class="item-code">frontend/src/app/dashboard/page.tsx:72–77</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="improvements" class="panel section">
+    <div class="sec-title">Improvements & tech debt</div>
+
+    <div class="item">
+      <span class="pill pill-teal">Architecture</span>
+      <div class="item-body">
+        <p class="item-title">Decouple backend and worker properly via Celery send_task</p>
+        <p class="item-desc">Replace the <code>sys.path</code> hack in workspace router with <code>celery_app.send_task("tasks.clone", args=[...])</code>. The backend should only know task names (strings), not import worker code directly. This is the standard Celery pattern.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-teal">Architecture</span>
+      <div class="item-body">
+        <p class="item-title">Add Pydantic v2 schemas for all request bodies and response models</p>
+        <p class="item-desc">All routes use raw <code>request.json()</code> with no validation. Adding schemas gives free OpenAPI docs, automatic 422 errors for bad inputs, type safety, and makes the API self-documenting at <code>/docs</code>.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-teal">Architecture</span>
+      <div class="item-body">
+        <p class="item-title">Add Celery task failure handlers and status propagation</p>
+        <p class="item-desc">Wrap the pipeline with <code>on_failure</code> callbacks that update <code>workspace.status = "error"</code> and store the error message. Add a <code>GET /api/workspace/{id}/status</code> response that includes the error detail when status is "error".</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-blue">Performance</span>
+      <div class="item-body">
+        <p class="item-title">Embed task embeds one chunk at a time — 60 files × ~3 chunks = ~180 sequential API calls</p>
+        <p class="item-desc">The embedding loop calls <code>await get_embedding()</code> one at a time with no batching beyond the inner <code>batch_size=20</code> grouping. OpenRouter's embeddings endpoint supports batching multiple inputs in one call. Using batch embedding would reduce analysis time by ~10×.</p>
+        <span class="item-code">worker/tasks/embed_task.py:40–44</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-blue">Performance</span>
+      <div class="item-body">
+        <p class="item-title">SWR polling runs on every workspace tab — fetches file tree and workspace state simultaneously</p>
+        <p class="item-desc">The workspace page, IDELayout, and explore page all independently call <code>useSWR</code> for <code>/workspace/{id}</code> and <code>/files/{id}</code>. SWR deduplicates same-key calls within the same component tree, but the overlapping keys between parent and child components create unnecessary network requests.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-blue">Performance</span>
+      <div class="item-body">
+        <p class="item-title">Issue classifier sends all 50 issues to the LLM in one call — hits context limits on busy repos</p>
+        <p class="item-desc">Large repos (React, Next.js, etc.) have hundreds of issues. Truncating to 50 and sending all at once in a single prompt can hit the model's context window. Should paginate or batch in groups of 15–20 with retry logic.</p>
+        <span class="item-code">shared/prompts.py:build_issue_classifier_prompt</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">DX</span>
+      <div class="item-body">
+        <p class="item-title">All error handling uses bare alert() in the frontend</p>
+        <p class="item-desc">GitPanel, and several other components use <code>alert(e.message)</code> for errors — a native browser dialog that blocks the UI. Should use toast notifications (shadcn's Sonner or a custom toast) that are non-blocking and dismissable.</p>
+        <span class="item-code">frontend/src/components/ide/GitPanel.tsx:32, 43, 54</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">DX</span>
+      <div class="item-body">
+        <p class="item-title">AI chat messages render as &lt;pre&gt; plain text — markdown and code blocks not rendered</p>
+        <p class="item-desc">AI responses containing markdown (headers, bullet lists, code fences) are displayed inside a <code>&lt;pre&gt;</code> tag as raw text including the asterisks and backticks. Should use <code>react-markdown</code> with <code>react-syntax-highlighter</code> for code blocks.</p>
+        <span class="item-code">frontend/src/components/ide/AIAssistantPanel.tsx:97</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">DX</span>
+      <div class="item-body">
+        <p class="item-title">FileTree component has no search / filter</p>
+        <p class="item-desc">For repos with 200+ files the tree is a long unsearchable list. No "find file" shortcut (Ctrl+P), no filter input, no fuzzy matching. Critical for IDE usability.</p>
+        <span class="item-code">frontend/src/components/repo/FileTree.tsx</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-amber">DX</span>
+      <div class="item-body">
+        <p class="item-title">No loading state when loading file content in Monaco</p>
+        <p class="item-desc">Clicking a file in the tree calls the API and shows nothing until the content arrives. For large files this is a blank white editor. Should show a skeleton or spinner while the fetch is in-flight.</p>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Minor</span>
+      <div class="item-body">
+        <p class="item-title">CHUNK_SIZE and CHUNK_OVERLAP constants are imported in embed_task but not used</p>
+        <p class="item-desc">The embed task imports <code>CHUNK_SIZE, CHUNK_OVERLAP</code> from constants but uses its own hardcoded <code>max_chars=3000</code> in <code>chunk_file()</code>. The constants have no effect.</p>
+        <span class="item-code">worker/tasks/embed_task.py:5</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Minor</span>
+      <div class="item-body">
+        <p class="item-title">Footer still says "© 2024" and has placeholder privacy/terms links</p>
+        <p class="item-desc">Landing page footer has hardcoded 2024 copyright and all links (<code>Privacy, Terms, GitHub, Discord</code>) point to <code>#</code>.</p>
+        <span class="item-code">frontend/src/app/page.tsx:91–96</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="naming" class="panel section">
+    <div class="sec-title">Naming inconsistencies</div>
+
+    <div class="item">
+      <span class="pill pill-amber">Branding</span>
+      <div class="item-body">
+        <p class="item-title">Project name is inconsistent across the codebase</p>
+        <p class="item-desc">The repo is named <strong>PathFlow</strong> but the app consistently calls itself <strong>PatchFlow</strong> in the UI, FastAPI title, and prompts. The system prompt still says "PatchFlow AI". Pick one and do a global find-and-replace.</p>
+        <span class="item-code">backend/main.py:8 · shared/prompts.py · frontend/src/app/page.tsx · frontend/src/app/dashboard/page.tsx</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Consistency</span>
+      <div class="item-body">
+        <p class="item-title">AI HTTP-Referer says "patchflow.dev" — a domain that presumably doesn't exist yet</p>
+        <p class="item-desc">All OpenRouter calls send <code>HTTP-Referer: https://patchflow.dev</code>. This domain should be configurable, not hardcoded, and should match the actual deployment URL.</p>
+        <span class="item-code">backend/app/services/ai_service.py:24, 36</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Consistency</span>
+      <div class="item-body">
+        <p class="item-title">AGENTS.md and CLAUDE.md in frontend root are placeholder/empty files</p>
+        <p class="item-desc"><code>frontend/CLAUDE.md</code> contains just the word "Frontend". <code>frontend/AGENTS.md</code> has some instructions. These should either be fleshed out properly or removed.</p>
+        <span class="item-code">frontend/CLAUDE.md · frontend/AGENTS.md</span>
+      </div>
+    </div>
+
+    <div class="item">
+      <span class="pill pill-gray">Consistency</span>
+      <div class="item-body">
+        <p class="item-title">stitch_ref/dashboard.html is a 22KB reference file committed to the repo</p>
+        <p class="item-desc">A full HTML Stitch design reference is sitting in <code>frontend/src/app/stitch_ref/</code> as a live route. It will be accessible at <code>/stitch_ref</code> in production and serves no functional purpose. Should be removed or added to .gitignore.</p>
+        <span class="item-code">frontend/src/app/stitch_ref/dashboard.html</span>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function show(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>

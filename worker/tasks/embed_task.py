@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
 from constants import REPOS_BASE_PATH, CHUNK_SIZE, CHUNK_OVERLAP
 
-def chunk_file(content: str, file_path: str, max_chars: int = 3000) -> list[dict]:
+def chunk_file(content: str, file_path: str, max_chars: int = CHUNK_SIZE) -> list[dict]:
     chunks = []
     lines = content.split("\n")
     current, current_lines = [], 0
@@ -20,39 +20,64 @@ def chunk_file(content: str, file_path: str, max_chars: int = 3000) -> list[dict
 
 @app.task(bind=True, name="tasks.embed")
 def embed_repo(self, prev_result: dict):
-    workspace_id = prev_result["workspace_id"]
-    repo_path = prev_result["repo_path"]
-    all_files = prev_result["all_files"]
-    self.update_state(state="PROGRESS", meta={"status": "embedding", "progress": 45})
-    IMPORTANT_EXTS = {'.py', '.js', '.ts', '.tsx', '.jsx'}
-    MAX_FILES = 60
-    priority_files = [f for f in all_files if f["ext"] in IMPORTANT_EXTS and f["size"] < 50000][:MAX_FILES]
-    all_chunks = []
-    for f in priority_files:
-        fpath = os.path.join(repo_path, f["path"])
+    try:
+        workspace_id = prev_result["workspace_id"]
+        repo_path = prev_result["repo_path"]
+        all_files = prev_result["all_files"]
+        self.update_state(state="PROGRESS", meta={"status": "embedding", "progress": 45})
+        IMPORTANT_EXTS = {'.py', '.js', '.ts', '.tsx', '.jsx'}
+        MAX_FILES = 60
+        priority_files = [f for f in all_files if f["ext"] in IMPORTANT_EXTS and f["size"] < 50000][:MAX_FILES]
+        all_chunks = []
+        for f in priority_files:
+            fpath = os.path.join(repo_path, f["path"])
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                    content = fh.read()
+                chunks = chunk_file(content, f["path"])
+                all_chunks.extend(chunks)
+            except Exception:
+                continue
+        async def do_embed():
+            from app.services.ai_service import get_embedding
+            from app.services.vector_service import ensure_collection, upsert_chunks, delete_workspace_vectors
+            await ensure_collection()
+            await delete_workspace_vectors(workspace_id)
+            batch_size = 10
+            total_embedded = 0
+            for i in range(0, len(all_chunks), batch_size):
+                batch = all_chunks[i:i+batch_size]
+                embeddings = []
+                for chunk in batch:
+                    try:
+                        emb = await get_embedding(chunk["content"][:2000])
+                        embeddings.append(emb)
+                    except Exception:
+                        continue
+                if embeddings and len(embeddings) == len(batch):
+                    try:
+                        await upsert_chunks(workspace_id, batch, embeddings)
+                        total_embedded += len(batch)
+                    except Exception:
+                        pass
+            return total_embedded
         try:
-            with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
-                content = fh.read()
-            chunks = chunk_file(content, f["path"])
-            all_chunks.extend(chunks)
+            total = asyncio.run(do_embed())
         except Exception:
-            continue
-    async def do_embed():
-        from app.services.ai_service import get_embedding
-        from app.services.vector_service import ensure_collection, upsert_chunks, delete_workspace_vectors
-        await ensure_collection()
-        await delete_workspace_vectors(workspace_id)
-        batch_size = 20
-        for i in range(0, len(all_chunks), batch_size):
-            batch = all_chunks[i:i+batch_size]
-            embeddings = []
-            for chunk in batch:
-                emb = await get_embedding(chunk["content"][:2000])
-                embeddings.append(emb)
-            await upsert_chunks(workspace_id, batch, embeddings)
-    asyncio.run(do_embed())
-    _update_status(workspace_id, "generating_docs")
-    return {**prev_result, "chunks_embedded": len(all_chunks)}
+            total = 0
+        if total > 0:
+            _update_status(workspace_id, "generating_docs")
+        else:
+            _update_status(workspace_id, "generating_docs")
+        return {**prev_result, "chunks_embedded": total}
+    except Exception:
+        from sqlalchemy import update
+        from app.models.workspace import Workspace
+        engine = get_sync_engine()
+        with engine.connect() as conn:
+            conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
+            conn.commit()
+        raise
 
 from db_utils import get_sync_engine
 

@@ -3,6 +3,9 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import useSWR from "swr";
 import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
+import { TopBar } from "@/components/layout/TopBar";
 import { FileTree } from "@/components/repo/FileTree";
 import { ArchitectureDiagram } from "@/components/repo/ArchitectureDiagram";
 import { IssueKanban } from "@/components/issues/IssueKanban";
@@ -17,15 +20,56 @@ export default function WorkspacePage() {
   const params = useParams();
   const workspaceId = Number(params.id);
   const [activeFile, setActiveFile] = useState<string | null>(null);
-  const { data: ws, isLoading } = useSWR(`/workspace/${workspaceId}`, () => api.workspace.get(workspaceId), {
-    refreshInterval: (data) => data?.status !== "ready" ? 3000 : 0,
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { data: ws, isLoading } = useSWR(isAuthenticated ? `/workspace/${workspaceId}` : null, () => api.workspace.get(workspaceId), {
+    refreshInterval: 3000,
+    revalidateOnFocus: false,
   });
-  const { data: files } = useSWR(`/files/${workspaceId}`, () => api.files.tree(workspaceId));
+  const { data: files } = useSWR(isAuthenticated ? `/files/${workspaceId}` : null, () => api.files.tree(workspaceId));
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
         <Skeleton className="w-64 h-8" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--background)" }}>
+        <p style={{ color: "var(--muted-foreground)" }}>Please sign in to access this workspace.</p>
+        <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/auth/github`}
+           className="px-6 py-3 rounded-lg text-white font-medium"
+           style={{ background: "var(--accent)" }}>
+          Sign In with GitHub
+        </a>
+      </div>
+    );
+  }
+
+  if (ws && ws.status === "error") {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-6" style={{ background: "var(--background)" }}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "#501313" }}>
+          <span className="text-2xl text-[#F7C1C1]">!</span>
+        </div>
+        <div className="text-center">
+          <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+            Analysis Failed
+          </h2>
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            {ws.repo_owner}/{ws.repo_name}
+          </p>
+          <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
+            The analysis pipeline encountered an error. Make sure the Celery worker is running.
+          </p>
+        </div>
+        <a href="/dashboard"
+           className="px-6 py-3 rounded-lg text-white font-medium text-sm"
+           style={{ background: "var(--accent)" }}>
+          Back to Dashboard
+        </a>
       </div>
     );
   }
@@ -60,20 +104,13 @@ export default function WorkspacePage() {
   const isReady = ws?.status === "ready";
 
   return (
+    <ErrorBoundary>
     <div className="h-screen flex flex-col" style={{ background: "var(--background)" }}>
-      <header className="border-b px-6 py-3 flex items-center gap-4 shrink-0"
-              style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
-        <a href="/dashboard" style={{ color: "var(--muted-foreground)" }}>
-          <ArrowLeft className="w-5 h-5" />
-        </a>
-        <GitBranch className="w-5 h-5" style={{ color: "var(--accent)" }} />
-        <span className="font-semibold" style={{ color: "var(--foreground)" }}>
-          {ws?.repo_owner}/{ws?.repo_name}
-        </span>
-        <Badge variant="outline" className="ml-auto" style={{ borderColor: "var(--accent)40", color: "var(--accent)" }}>
-          {ws?.branch}
-        </Badge>
-      </header>
+      <TopBar
+        workspaceName={ws ? `${ws.repo_owner}/${ws.repo_name}` : undefined}
+        branch={ws?.branch}
+        showBack
+      />
 
       <Tabs defaultValue="explain" className="flex flex-col flex-1 min-h-0">
         <div className="border-b shrink-0 px-6" style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
@@ -203,5 +240,6 @@ export default function WorkspacePage() {
         </TabsContent>
       </Tabs>
     </div>
+    </ErrorBoundary>
   );
 }

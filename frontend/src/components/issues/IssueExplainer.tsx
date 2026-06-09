@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 import { AlertTriangle, FileCode, BookOpen, Lightbulb } from "lucide-react";
 
 const riskColors: Record<string, string> = {
@@ -20,6 +22,7 @@ interface IssueExplainerProps {
 }
 
 export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerProps) {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -102,10 +105,22 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
             </div>
 
             <div className="flex gap-2 pt-4">
-              <Button style={{ background: "var(--accent)" }}>
+              <Button
+                onClick={() => router.push(`/workspace/${workspaceId}?tab=code&issue=${issue.number}`)}
+                style={{ background: "var(--accent)" }}>
                 Open in IDE
               </Button>
-              <Button variant="outline" style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
+              <Button
+                onClick={async () => {
+                  try {
+                    const solution = await api.ai.solveIssue(workspaceId, issue.number);
+                    alert(JSON.stringify(solution, null, 2));
+                  } catch (e: any) {
+                    alert("Failed to generate solution: " + e.message);
+                  }
+                }}
+                variant="outline"
+                style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
                 Solve with AI
               </Button>
             </div>

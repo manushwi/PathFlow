@@ -38,13 +38,33 @@ async def get_file_content(workspace_id: int, path: str, request: Request,
         raise HTTPException(404)
     repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
     file_path = os.path.join(repo_path, path.lstrip("/"))
-    if not os.path.abspath(file_path).startswith(os.path.abspath(repo_path)):
+    if not os.path.realpath(file_path).startswith(os.path.realpath(repo_path)):
         raise HTTPException(403, "Access denied")
     if not os.path.exists(file_path):
         raise HTTPException(404, "File not found")
     with open(file_path, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
     return {"path": path, "content": content}
+
+@router.post("/content")
+async def save_file_content(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user: User = await get_current_user(request, db)
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
+                                                        Workspace.user_id == user.id))
+    ws = result.scalar_one_or_none()
+    if not ws:
+        raise HTTPException(404)
+    body = await request.json()
+    path = body["path"]
+    content = body["content"]
+    repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
+    file_path = os.path.join(repo_path, path.lstrip("/"))
+    if not os.path.realpath(file_path).startswith(os.path.realpath(repo_path)):
+        raise HTTPException(403, "Access denied")
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return {"ok": True}
 
 @router.post("/open-files")
 async def save_open_files(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):

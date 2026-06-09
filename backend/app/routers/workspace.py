@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.workspace import Workspace, RepoAnalysis
 from app.models.user import User
-import re
+import os, re, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../shared'))
+from constants import REPOS_BASE_PATH
 
 router = APIRouter(prefix="/api/workspace", tags=["workspace"])
 
@@ -28,6 +31,8 @@ async def list_workspaces(request: Request, db: AsyncSession = Depends(get_db)):
 @router.post("")
 async def create_workspace(request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
+    from app.services.rate_limiter import check_rate_limit, get_client_key
+    check_rate_limit(get_client_key(request), max_requests=5, window_seconds=60)
     body = await request.json()
     repo_url = body["repo_url"].strip()
     owner, name = parse_repo_url(repo_url)
@@ -41,19 +46,24 @@ async def create_workspace(request: Request, db: AsyncSession = Depends(get_db))
     db.add(ws)
     await db.commit()
     await db.refresh(ws)
-    import sys, os
-    worker_dir = os.path.join(os.path.dirname(__file__), '../../../worker')
-    if worker_dir not in sys.path:
-        sys.path.insert(0, worker_dir)
-    from tasks.pipeline import run_analysis_pipeline
-    run_analysis_pipeline(ws.id, repo_url)
+    from app.core.config import settings
+    try:
+        from celery import Celery
+        celery_app = Celery(broker=settings.celery_broker_url)
+        celery_app.send_task("tasks.clone", args=[ws.id, repo_url, "main"], queue="default")
+    except Exception:
+        ws.status = "error"
+        await db.commit()
     return {"id": ws.id, "existing": False}
 
 @router.get("/{workspace_id}")
 async def get_workspace(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
-                                                        Workspace.user_id == user.id))
+    result = await db.execute(
+        select(Workspace)
+        .options(selectinload(Workspace.analysis))
+        .where(Workspace.id == workspace_id, Workspace.user_id == user.id)
+    )
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404, "Workspace not found")
@@ -83,6 +93,17 @@ async def delete_workspace(workspace_id: int, request: Request, db: AsyncSession
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404)
+    # Clean up Qdrant vectors
+    try:
+        from app.services.vector_service import delete_workspace_vectors
+        await delete_workspace_vectors(workspace_id)
+    except Exception:
+        pass
+    # Clean up local repo files
+    import shutil
+    repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
+    if os.path.exists(repo_path):
+        shutil.rmtree(repo_path, ignore_errors=True)
     await db.delete(ws)
     await db.commit()
     return {"ok": True}

@@ -6,7 +6,8 @@ import { streamChat } from "@/hooks/useAIStream";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SendHorizonal, Bot, User, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { SendHorizonal, Bot, User, Sparkles, Loader2 } from "lucide-react";
 
 interface AIAssistantPanelProps {
   workspaceId: number;
@@ -16,6 +17,7 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { data: history } = useSWR(`/chat-history/${workspaceId}`, () => api.ai.chatHistory(workspaceId));
 
@@ -37,6 +39,7 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setStreaming(true);
+    setError(null);
     const assistantMsg = { role: "assistant", content: "" };
     setMessages((prev) => [...prev, assistantMsg]);
     await streamChat(
@@ -52,7 +55,8 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
           return updated;
         });
       },
-      () => setStreaming(false)
+      () => setStreaming(false),
+      (err) => setError(err.message)
     );
   };
 
@@ -81,7 +85,10 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
               {quickActions.map((action) => (
                 <button
                   key={action.label}
-                  onClick={() => setInput(action.label)}
+                  onClick={() => {
+                    setInput(action.label);
+                    setTimeout(() => handleSend(), 100);
+                  }}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm w-full transition-colors"
                   style={{ background: "var(--card)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}
                 >
@@ -109,10 +116,25 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
                 background: msg.role === "user" ? "var(--accent)" : "var(--card)",
                 color: msg.role === "user" ? "white" : "var(--foreground)",
               }}>
-                <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content || (streaming && i === messages.length - 1 ? "..." : "")}</pre>
+                {msg.role === "assistant" && msg.content === "" && streaming ? (
+                  <div className="flex items-center gap-1">
+                    <span className="animate-pulse" style={{ color: "var(--accent)" }}>●</span>
+                    <span className="animate-pulse" style={{ color: "var(--accent)", animationDelay: "200ms" }}>●</span>
+                    <span className="animate-pulse" style={{ color: "var(--accent)", animationDelay: "400ms" }}>●</span>
+                  </div>
+                ) : (
+                  <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&_pre]:bg-[#1a1a2e] [&_pre]:p-3 [&_pre]:rounded-lg [&_code]:text-sm">
+                    {msg.content || ""}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           ))}
+          {error && (
+            <div className="text-sm p-2 rounded" style={{ background: "var(--danger)15", color: "var(--danger)" }}>
+              Error: {error}
+            </div>
+          )}
         </div>
       </ScrollArea>
 
@@ -128,7 +150,7 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
           />
           <Button size="icon" onClick={handleSend} disabled={streaming || !input.trim()}
                   style={{ background: "var(--accent)" }}>
-            <SendHorizonal className="w-4 h-4" />
+            {streaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <SendHorizonal className="w-4 h-4" />}
           </Button>
         </div>
       </div>

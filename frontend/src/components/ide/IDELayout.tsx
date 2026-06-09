@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { FileTree } from "@/components/repo/FileTree";
 import { AIAssistantPanel } from "@/components/ide/AIAssistantPanel";
@@ -7,7 +7,7 @@ import { GitPanel } from "@/components/ide/GitPanel";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import useSWR from "swr";
 import { api } from "@/lib/api";
-import { Bot, GitBranch, PanelRightClose } from "lucide-react";
+import { Bot, GitBranch, PanelRightClose, Loader2 } from "lucide-react";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -18,19 +18,65 @@ interface IDELayoutProps {
 export function IDELayout({ workspaceId }: IDELayoutProps) {
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState("");
+  const [editedContent, setEditedContent] = useState("");
+  const [loadingFile, setLoadingFile] = useState(false);
   const [rightPanel, setRightPanel] = useState<"ai" | "git">("ai");
   const { data: files } = useSWR(`/files/${workspaceId}`, () => api.files.tree(workspaceId));
   const { data: ws } = useSWR(`/workspace/${workspaceId}`, () => api.workspace.get(workspaceId));
 
+  const handleEditorChange = useCallback((value: string | undefined) => {
+    if (value !== undefined) setEditedContent(value);
+  }, []);
+
   const handleFileSelect = async (path: string) => {
     setActiveFile(path);
+    setLoadingFile(true);
     try {
       const res = await api.files.content(workspaceId, path);
       setFileContent(res.content);
+      setEditedContent(res.content);
     } catch {
       setFileContent("// Could not load file");
+      setEditedContent("// Could not load file");
+    } finally {
+      setLoadingFile(false);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (activeFile && editedContent) {
+          api.files.save(workspaceId, activeFile, editedContent)
+            .then(() => {})
+            .catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeFile, editedContent, workspaceId]);
+
+  useEffect(() => {
+    const saveOpenFiles = () => {
+      if (activeFile) {
+        api.files.saveOpenFiles(workspaceId, [{ path: activeFile, line: 0, col: 0 }])
+          .catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', saveOpenFiles);
+    return () => window.removeEventListener('beforeunload', saveOpenFiles);
+  }, [activeFile, workspaceId]);
+
+  useEffect(() => {
+    api.files.getOpenFiles(workspaceId).then((res) => {
+      if (res.files?.length > 0) {
+        const lastFile = res.files[res.files.length - 1];
+        handleFileSelect(lastFile.path);
+      }
+    }).catch(() => {});
+  }, [workspaceId]);
 
   const getLanguage = (path: string) => {
     const ext = path.split(".").pop()?.toLowerCase();
@@ -77,19 +123,26 @@ export function IDELayout({ workspaceId }: IDELayoutProps) {
                   </span>
                 </div>
                 <div className="flex-1">
-                  <MonacoEditor
-                    language={getLanguage(activeFile)}
-                    value={fileContent}
-                    theme="vs-dark"
-                    options={{
-                      fontSize: 13,
-                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                      minimap: { enabled: true },
-                      scrollBeyondLastLine: false,
-                      tabSize: 2,
-                      automaticLayout: true,
-                    }}
-                  />
+                  {loadingFile ? (
+                    <div className="flex-1 flex items-center justify-center h-full">
+                      <Loader2 className="w-8 h-8 animate-spin" style={{color: "var(--accent)"}} />
+                    </div>
+                  ) : (
+                    <MonacoEditor
+                      language={getLanguage(activeFile)}
+                      value={fileContent}
+                      onChange={handleEditorChange}
+                      theme="vs-dark"
+                      options={{
+                        fontSize: 13,
+                        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                        minimap: { enabled: true },
+                        scrollBeyondLastLine: false,
+                        tabSize: 2,
+                        automaticLayout: true,
+                      }}
+                    />
+                  )}
                 </div>
               </>
             ) : (

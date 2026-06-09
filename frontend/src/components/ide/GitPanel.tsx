@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GitBranch, MessageSquare, GitPullRequest } from "lucide-react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 interface GitPanelProps {
   workspaceId: number;
@@ -17,6 +19,7 @@ export function GitPanel({ workspaceId }: GitPanelProps) {
   const [committing, setCommitting] = useState(false);
   const [prDialog, setPrDialog] = useState(false);
   const [prData, setPrData] = useState<any>(null);
+  const [branchName, setBranchName] = useState("");
 
   const handleCommit = async () => {
     if (!commitMsg.trim()) return;
@@ -26,7 +29,7 @@ export function GitPanel({ workspaceId }: GitPanelProps) {
       setCommitMsg("");
       mutate();
     } catch (e: any) {
-      alert(e.message);
+      toast.error("Commit failed", { description: e.message });
     } finally {
       setCommitting(false);
     }
@@ -38,17 +41,38 @@ export function GitPanel({ workspaceId }: GitPanelProps) {
       setPrData(result);
       setPrDialog(true);
     } catch (e: any) {
-      alert(e.message);
+      toast.error("PR generation failed", { description: e.message });
+    }
+  };
+
+  const handleGeneratePRWithIssue = async (issueNumber: number) => {
+    try {
+      const result = await api.git.generatePR(workspaceId, issueNumber, data?.diff || "");
+      setPrData(result);
+      setPrDialog(true);
+    } catch (e: any) {
+      toast.error("PR generation failed", { description: e.message });
+    }
+  };
+
+  const handleCreateBranch = async () => {
+    if (!branchName.trim()) return;
+    try {
+      await api.git.createBranch(workspaceId, branchName.trim());
+      toast.success("Branch created", { description: branchName });
+      setBranchName("");
+    } catch (e: any) {
+      toast.error("Branch creation failed", { description: e.message });
     }
   };
 
   const handleSubmitPR = async () => {
     try {
       const result = await api.git.createPR(workspaceId, prData.title, prData.body);
-      alert(`PR created: ${result.pr_url}`);
+      toast.success("PR created!", { description: result.pr_url });
       setPrDialog(false);
     } catch (e: any) {
-      alert(e.message);
+      toast.error("PR submission failed", { description: e.message });
     }
   };
 
@@ -109,6 +133,20 @@ export function GitPanel({ workspaceId }: GitPanelProps) {
             <GitPullRequest className="w-3 h-3 mr-1" /> PR
           </Button>
         </div>
+      </div>
+
+      <div className="flex gap-2 px-3 pb-3 pt-2 border-t" style={{borderColor: "var(--border)"}}>
+        <Input
+          placeholder="branch-name"
+          value={branchName}
+          onChange={(e) => setBranchName(e.target.value)}
+          className="text-xs flex-1"
+          style={{background: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)"}}
+        />
+        <Button size="sm" variant="outline" onClick={handleCreateBranch}
+                style={{borderColor: "var(--border)", color: "var(--foreground)"}}>
+          <GitBranch className="w-3 h-3 mr-1" /> Branch
+        </Button>
       </div>
 
       <Dialog open={prDialog} onOpenChange={setPrDialog}>

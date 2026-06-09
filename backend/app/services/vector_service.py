@@ -6,9 +6,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../shared'))
 from constants import QDRANT_COLLECTION, EMBEDDING_DIM
 import uuid
 
-client = AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
+_client = None
+
+def _get_client() -> AsyncQdrantClient:
+    global _client
+    if _client is None:
+        _client = AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key)
+    return _client
 
 async def ensure_collection():
+    client = _get_client()
     collections = await client.get_collections()
     names = [c.name for c in collections.collections]
     if QDRANT_COLLECTION not in names:
@@ -18,6 +25,7 @@ async def ensure_collection():
         )
 
 async def upsert_chunks(workspace_id: int, chunks: list[dict], embeddings: list[list[float]]):
+    client = _get_client()
     points = [
         PointStruct(
             id=str(uuid.uuid4()),
@@ -30,6 +38,7 @@ async def upsert_chunks(workspace_id: int, chunks: list[dict], embeddings: list[
     await client.upsert(collection_name=QDRANT_COLLECTION, points=points)
 
 async def search_similar(workspace_id: int, query_embedding: list[float], limit: int = 8) -> list[dict]:
+    client = _get_client()
     results = await client.search(
         collection_name=QDRANT_COLLECTION,
         query_vector=query_embedding,
@@ -40,6 +49,7 @@ async def search_similar(workspace_id: int, query_embedding: list[float], limit:
              "score": r.score} for r in results]
 
 async def delete_workspace_vectors(workspace_id: int):
+    client = _get_client()
     await client.delete(
         collection_name=QDRANT_COLLECTION,
         points_selector=Filter(must=[FieldCondition(key="workspace_id", match=MatchValue(value=workspace_id))]),

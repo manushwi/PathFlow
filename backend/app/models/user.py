@@ -1,6 +1,6 @@
 from sqlalchemy import String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.core.database import Base
 
 class User(Base):
@@ -14,5 +14,5 @@ class User(Base):
     github_token: Mapped[str] = mapped_column(String(500))
     skill_level: Mapped[str] = mapped_column(String(20), default="beginner")
     skill_confirmed: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
     workspaces: Mapped[list["Workspace"]] = relationship(back_populates="user")
