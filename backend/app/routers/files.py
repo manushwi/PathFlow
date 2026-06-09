@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.workspace import Workspace, WorkspaceFile
@@ -14,8 +15,11 @@ router = APIRouter(prefix="/api/workspace/{workspace_id}/files", tags=["files"])
 @router.get("")
 async def get_file_tree(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
-                                                        Workspace.user_id == user.id))
+    result = await db.execute(
+        select(Workspace)
+        .options(selectinload(Workspace.analysis))
+        .where(Workspace.id == workspace_id, Workspace.user_id == user.id)
+    )
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404)

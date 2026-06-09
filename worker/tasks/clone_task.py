@@ -25,12 +25,13 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
     _update_workspace_status(workspace_id, "analyzing", sha)
     return {"workspace_id": workspace_id, "repo_path": repo_path, "sha": sha}
 
+from db_utils import get_sync_engine
+
 def _update_workspace_status(workspace_id: int, status: str, sha: str = None):
-    from sqlalchemy import create_engine, update
+    from sqlalchemy import update
     from sqlalchemy.orm import sessionmaker
-    from app.core.config import settings
     from app.models.workspace import Workspace, RepoAnalysis
-    engine = create_engine(settings.database_url.replace("postgresql://", "postgresql+psycopg2://"))
+    engine = get_sync_engine()
     Session = sessionmaker(bind=engine)
     with Session() as session:
         session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status=status))

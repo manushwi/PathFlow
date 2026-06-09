@@ -9,7 +9,7 @@ dev-backend:
 	cd backend && uvicorn main:app --reload --port 8000
 
 dev-worker:
-	cd worker && celery -A celery_app worker --loglevel=info --concurrency=2
+	cd worker && celery -A celery_app worker --loglevel=info --pool=solo
 
 dev-frontend:
 	cd frontend && npm run dev

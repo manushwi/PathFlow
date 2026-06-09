@@ -1,6 +1,7 @@
 from celery_app import app
 import os, sys, json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
+from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.graph")
 def build_graph(self, prev_result: dict):
@@ -16,7 +17,7 @@ def build_graph(self, prev_result: dict):
              "data": {"label": label, "nodeType": node_type},
              "position": {"x": x, "y": y},
              "style": {"background": "#1e1e2e", "border": "1px solid #6366f1",
-                       "borderRadius": "8px", "color": "#e2e8f0", "padding": "8px 12px"}}
+                        "borderRadius": "8px", "color": "#e2e8f0", "padding": "8px 12px"}}
         nodes.append(n)
         node_id += 1
         return str(node_id - 1)
@@ -38,11 +39,10 @@ def build_graph(self, prev_result: dict):
         add_edge(auth, api)
     graph = {"nodes": nodes, "edges": edges}
     def save_graph():
-        from sqlalchemy import create_engine, update
+        from sqlalchemy import update
         from sqlalchemy.orm import sessionmaker
-        from app.core.config import settings
         from app.models.workspace import Workspace, RepoAnalysis
-        engine = create_engine(settings.database_url.replace("postgresql://", "postgresql+psycopg2://"))
+        engine = get_sync_engine()
         Session = sessionmaker(bind=engine)
         with Session() as session:
             analysis = session.query(RepoAnalysis).filter_by(workspace_id=workspace_id).first()

@@ -46,12 +46,13 @@ def parse_repo(self, prev_result: dict):
     return {"workspace_id": workspace_id, "repo_path": repo_path,
             "all_files": all_files, "tech_stack": list(tech_stack.keys())}
 
+from db_utils import get_sync_engine
+
 def _save_parse_results(workspace_id, tree, tech_stack):
-    from sqlalchemy import create_engine, update
+    from sqlalchemy import update
     from sqlalchemy.orm import sessionmaker
-    from app.core.config import settings
     from app.models.workspace import Workspace, RepoAnalysis
-    engine = create_engine(settings.database_url.replace("postgresql://", "postgresql+psycopg2://"))
+    engine = get_sync_engine()
     Session = sessionmaker(bind=engine)
     with Session() as session:
         analysis = session.query(RepoAnalysis).filter_by(workspace_id=workspace_id).first()

@@ -54,12 +54,13 @@ def embed_repo(self, prev_result: dict):
     _update_status(workspace_id, "generating_docs")
     return {**prev_result, "chunks_embedded": len(all_chunks)}
 
+from db_utils import get_sync_engine
+
 def _update_status(workspace_id, status):
-    from sqlalchemy import create_engine, update
+    from sqlalchemy import update
     from sqlalchemy.orm import sessionmaker
-    from app.core.config import settings
     from app.models.workspace import Workspace
-    engine = create_engine(settings.database_url.replace("postgresql://", "postgresql+psycopg2://"))
+    engine = get_sync_engine()
     Session = sessionmaker(bind=engine)
     with Session() as session:
         session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status=status))

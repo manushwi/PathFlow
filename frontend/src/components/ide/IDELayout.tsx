@@ -44,99 +44,101 @@ export function IDELayout({ workspaceId }: IDELayoutProps) {
   };
 
   return (
-    <ResizablePanelGroup className="h-full">
-      <ResizablePanel defaultSize={18} minSize={12} maxSize={30}>
-        <div className="h-full flex flex-col" style={{ background: "var(--sidebar)" }}>
-          <div className="p-3 border-b text-sm font-medium flex items-center gap-2"
-               style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
-            <GitBranch className="w-4 h-4" style={{ color: "var(--accent)" }} />
-            {ws?.repo_name || "Explorer"}
-          </div>
-          <div className="flex-1 overflow-auto">
-            <FileTree
-              tree={files?.tree || {}}
-              onFileSelect={handleFileSelect}
-              activeFile={activeFile || undefined}
-            />
-          </div>
-        </div>
-      </ResizablePanel>
-
-      <ResizableHandle style={{ background: "var(--border)" }} />
-
-      <ResizablePanel defaultSize={52}>
-        <div className="h-full flex flex-col" style={{ background: "var(--background)" }}>
-          {activeFile ? (
-            <>
-              <div className="flex items-center px-4 py-2 border-b text-sm gap-2"
-                   style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
-                <span style={{ color: "var(--accent)" }}>{activeFile}</span>
-                <span className="ml-auto text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  {getLanguage(activeFile)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <MonacoEditor
-                  language={getLanguage(activeFile)}
-                  value={fileContent}
-                  theme="vs-dark"
-                  options={{
-                    fontSize: 13,
-                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                    minimap: { enabled: true },
-                    scrollBeyondLastLine: false,
-                    tabSize: 2,
-                    automaticLayout: true,
-                  }}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <PanelRightClose className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
-                <p style={{ color: "var(--muted-foreground)" }}>Select a file to view</p>
-              </div>
+    <div className="flex flex-col h-full">
+      <ResizablePanelGroup className="flex-1" orientation="horizontal">
+        <ResizablePanel defaultSize={22} minSize={15} maxSize={35}>
+          <div className="h-full flex flex-col" style={{ background: "var(--sidebar)" }}>
+            <div className="p-3 border-b text-sm font-medium flex items-center gap-2"
+                 style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
+              <GitBranch className="w-4 h-4" style={{ color: "var(--accent)" }} />
+              {ws?.repo_name || "Explorer"}
             </div>
-          )}
-        </div>
-      </ResizablePanel>
-
-      <ResizableHandle style={{ background: "var(--border)" }} />
-
-      <ResizablePanel defaultSize={30} minSize={20} maxSize={40}>
-        <div className="h-full flex flex-col">
-          <div className="flex border-b" style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
-            <button
-              onClick={() => setRightPanel("ai")}
-              className="flex-1 px-3 py-2 text-sm font-medium transition-colors"
-              style={{
-                background: rightPanel === "ai" ? "var(--background)" : "transparent",
-                color: rightPanel === "ai" ? "var(--accent)" : "var(--muted-foreground)",
-                borderBottom: rightPanel === "ai" ? "2px solid var(--accent)" : "2px solid transparent",
-              }}
-            >
-              <Bot className="w-4 h-4 inline mr-1" /> AI Chat
-            </button>
-            <button
-              onClick={() => setRightPanel("git")}
-              className="flex-1 px-3 py-2 text-sm font-medium transition-colors"
-              style={{
-                background: rightPanel === "git" ? "var(--background)" : "transparent",
-                color: rightPanel === "git" ? "var(--accent)" : "var(--muted-foreground)",
-                borderBottom: rightPanel === "git" ? "2px solid var(--accent)" : "2px solid transparent",
-              }}
-            >
-              <GitBranch className="w-4 h-4 inline mr-1" /> Git
-            </button>
+            <div className="flex-1 overflow-auto">
+              <FileTree
+                tree={files?.tree || {}}
+                onFileSelect={handleFileSelect}
+                activeFile={activeFile || undefined}
+              />
+            </div>
           </div>
-          {rightPanel === "ai" ? (
-            <AIAssistantPanel workspaceId={workspaceId} />
-          ) : (
-            <GitPanel workspaceId={workspaceId} />
-          )}
-        </div>
-      </ResizablePanel>
-    </ResizablePanelGroup>
+        </ResizablePanel>
+
+        <ResizableHandle style={{ background: "var(--border)" }} />
+
+        <ResizablePanel defaultSize={48} minSize={30}>
+          <div className="h-full flex flex-col" style={{ background: "var(--background)" }}>
+            {activeFile ? (
+              <>
+                <div className="flex items-center px-4 py-2 border-b text-sm gap-2"
+                     style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
+                  <span style={{ color: "var(--accent)" }}>{activeFile}</span>
+                  <span className="ml-auto text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    {getLanguage(activeFile)}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <MonacoEditor
+                    language={getLanguage(activeFile)}
+                    value={fileContent}
+                    theme="vs-dark"
+                    options={{
+                      fontSize: 13,
+                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                      minimap: { enabled: true },
+                      scrollBeyondLastLine: false,
+                      tabSize: 2,
+                      automaticLayout: true,
+                    }}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <PanelRightClose className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
+                  <p style={{ color: "var(--muted-foreground)" }}>Select a file to view</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle style={{ background: "var(--border)" }} />
+
+        <ResizablePanel defaultSize={30} minSize={20} maxSize={45}>
+          <div className="h-full flex flex-col">
+            <div className="flex border-b" style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
+              <button
+                onClick={() => setRightPanel("ai")}
+                className="flex-1 px-3 py-2 text-sm font-medium transition-colors"
+                style={{
+                  background: rightPanel === "ai" ? "var(--background)" : "transparent",
+                  color: rightPanel === "ai" ? "var(--accent)" : "var(--muted-foreground)",
+                  borderBottom: rightPanel === "ai" ? "2px solid var(--accent)" : "2px solid transparent",
+                }}
+              >
+                <Bot className="w-4 h-4 inline mr-1" /> AI Chat
+              </button>
+              <button
+                onClick={() => setRightPanel("git")}
+                className="flex-1 px-3 py-2 text-sm font-medium transition-colors"
+                style={{
+                  background: rightPanel === "git" ? "var(--background)" : "transparent",
+                  color: rightPanel === "git" ? "var(--accent)" : "var(--muted-foreground)",
+                  borderBottom: rightPanel === "git" ? "2px solid var(--accent)" : "2px solid transparent",
+                }}
+              >
+                <GitBranch className="w-4 h-4 inline mr-1" /> Git
+              </button>
+            </div>
+            {rightPanel === "ai" ? (
+              <AIAssistantPanel workspaceId={workspaceId} />
+            ) : (
+              <GitPanel workspaceId={workspaceId} />
+            )}
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 }

@@ -42,7 +42,9 @@ async def create_workspace(request: Request, db: AsyncSession = Depends(get_db))
     await db.commit()
     await db.refresh(ws)
     import sys, os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../worker'))
+    worker_dir = os.path.join(os.path.dirname(__file__), '../../../worker')
+    if worker_dir not in sys.path:
+        sys.path.insert(0, worker_dir)
     from tasks.pipeline import run_analysis_pipeline
     run_analysis_pipeline(ws.id, repo_url)
     return {"id": ws.id, "existing": False}

@@ -1,6 +1,6 @@
 from sqlalchemy import String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime, timezone
+from datetime import datetime
 from app.core.database import Base
 
 class Workspace(Base):
@@ -13,8 +13,8 @@ class Workspace(Base):
     status: Mapped[str] = mapped_column(String(50), default="pending")
     branch: Mapped[str] = mapped_column(String(200), default="main")
     active_issue_number: Mapped[int | None]
-    last_active: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    last_active: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     user: Mapped["User"] = relationship(back_populates="workspaces")
     analysis: Mapped["RepoAnalysis | None"] = relationship(back_populates="workspace", uselist=False)
     files: Mapped[list["WorkspaceFile"]] = relationship(back_populates="workspace")
@@ -31,7 +31,7 @@ class RepoAnalysis(Base):
     file_tree: Mapped[dict | None] = mapped_column(JSON)
     repo_sha: Mapped[str | None] = mapped_column(String(100))
     embedded_at: Mapped[datetime | None]
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     workspace: Mapped["Workspace"] = relationship(back_populates="analysis")
 
 class WorkspaceFile(Base):
@@ -50,5 +50,5 @@ class ChatMessage(Base):
     workspace_id: Mapped[int] = mapped_column(ForeignKey("workspaces.id"))
     role: Mapped[str] = mapped_column(String(20))
     content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.utcnow())
     workspace: Mapped["Workspace"] = relationship(back_populates="messages")

@@ -1,161 +1,395 @@
 "use client";
+
 import { useState } from "react";
-import useSWR from "swr";
-import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, LogOut, GitBranch, Clock } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Search,
+  Bell,
+  Settings,
+  LayoutDashboard,
+  GitBranch,
+  Columns3,
+  Code2,
+  Terminal,
+  FileText,
+  LogOut,
+  Plus,
+  MoreVertical,
+  RotateCcw,
+  GitFork,
+  GitMerge,
+  CheckCircle,
+  BarChart3,
+  History,
+  ArrowRight,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import useSWR from "swr";
+import { api } from "@/lib/api";
 
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  cloning: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  analyzing: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  embedding: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  generating_docs: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  building_graph: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  ready: "bg-green-500/20 text-green-400 border-green-500/30",
-  error: "bg-red-500/20 text-red-400 border-red-500/30",
-};
-
-export default function DashboardPage() {
-  const { user, isLoading, isAuthenticated, signout } = useAuth();
-  const { data: workspaces, mutate: refreshWorkspaces } = useSWR("/workspaces", () => api.workspace.list());
-  const [newUrl, setNewUrl] = useState("");
+export default function Dashboard() {
+  const { user, isLoading: authLoading, isAuthenticated, signout } = useAuth();
+  const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [repoUrl, setRepoUrl] = useState("");
   const [creating, setCreating] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [createError, setCreateError] = useState("");
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
-        <div className="animate-spin w-8 h-8 border-2 rounded-full" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--background)" }}>
-        <p style={{ color: "var(--muted-foreground)" }}>Redirecting to login...</p>
-      </div>
-    );
-  }
+  const { data: workspaces, mutate: refreshWorkspaces } = useSWR(
+    isAuthenticated ? "/workspace" : null,
+    () => api.workspace.list(),
+  );
 
   const handleCreate = async () => {
-    if (!newUrl.trim()) return;
+    if (!repoUrl.trim()) return;
     setCreating(true);
+    setCreateError("");
     try {
-      await api.workspace.create(newUrl.trim());
-      setNewUrl("");
-      setDialogOpen(false);
+      const ws = await api.workspace.create(repoUrl.trim());
+      setCreateOpen(false);
+      setRepoUrl("");
       refreshWorkspaces();
-    } catch (err: any) {
-      alert(err.message);
+      router.push(`/workspace/${ws.id}`);
+    } catch (e: any) {
+      setCreateError(e.message || "Failed to create workspace");
     } finally {
       setCreating(false);
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0a]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#adc6ff]" />
+      </div>
+    );
+  }
+
+  const recentActivity = [
+    { dot: "bg-green-500", text: "Patch AI completed ", code: "auth-fix", codeColor: "text-green-500", time: "4 minutes ago" },
+    { dot: "bg-blue-400", text: 'PR #122 approved by ', code: "@adamwathan", codeColor: "text-blue-400", time: "1 hour ago" },
+    { dot: "bg-orange-400", text: "Workspace ", code: "next-js-99", codeColor: "text-orange-400", time: "3 hours ago", last: true },
+  ];
+
   return (
-    <div className="min-h-screen" style={{ background: "var(--background)" }}>
-      <header className="border-b px-6 py-4 flex items-center justify-between"
-              style={{ background: "var(--sidebar)", borderColor: "var(--border)" }}>
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-bold" style={{ color: "var(--accent)" }}>PatchFlow</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" style={{ borderColor: "var(--accent)40", color: "var(--accent)" }}>
-            {user?.skill_level}
-          </Badge>
-          <div className="flex items-center gap-2">
-            {user?.avatar_url && (
-              <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-            )}
-            <span className="text-sm" style={{ color: "var(--foreground)" }}>{user?.login}</span>
+    <div className="min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
+      {/* Top Nav Bar */}
+      <header className="sticky top-0 z-50 flex h-14 w-full items-center justify-between border-b border-white/10 bg-[#0a0a0a]/80 px-6 backdrop-blur-xl">
+        <div className="flex items-center gap-8">
+          <span className="text-lg font-semibold tracking-tighter text-[#e1e2ec]">
+            PatchFlow
+          </span>
+          <div className="relative hidden w-96 md:block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#c2c6d6]" />
+            <input
+              className="w-full rounded-lg border border-white/10 bg-[#32353c]/30 py-1.5 pl-10 pr-4 text-sm text-[#e1e2ec] outline-none placeholder:text-[#c2c6d6]/50 focus:border-[#adc6ff] focus:ring-1 focus:ring-[#adc6ff] transition-all"
+              placeholder="Search workspaces..."
+              type="text"
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signout}>
-            <LogOut className="w-4 h-4 mr-1" /> Sign out
-          </Button>
         </div>
+        <nav className="flex items-center gap-4">
+          <button className="rounded-lg p-2 text-[#c2c6d6] transition-colors hover:bg-[#32353c]/50">
+            <Bell className="h-5 w-5" />
+          </button>
+          <button className="rounded-lg p-2 text-[#c2c6d6] transition-colors hover:bg-[#32353c]/50">
+            <Settings className="h-5 w-5" />
+          </button>
+          <div className="mx-1 h-8 w-px bg-[#424754]/30" />
+          <Avatar className="h-8 w-8 rounded-lg border border-[#424754]/30">
+            <AvatarImage src={user?.avatar_url} />
+            <AvatarFallback>{user?.login?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+          </Avatar>
+        </nav>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>My Workspaces</h1>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger>
-              <Button style={{ background: "var(--accent)" }}>
-                <Plus className="w-4 h-4 mr-2" /> New Workspace
-              </Button>
-            </DialogTrigger>
-            <DialogContent style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-              <DialogHeader>
-                <DialogTitle style={{ color: "var(--foreground)" }}>Add Repository</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <Input
-                  placeholder="https://github.com/owner/repo"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                  style={{ background: "var(--background)", borderColor: "var(--border)", color: "var(--foreground)" }}
-                />
-                <Button onClick={handleCreate} disabled={creating} className="w-full" style={{ background: "var(--accent)" }}>
-                  {creating ? "Creating..." : "Create Workspace"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+      <div className="flex min-h-[calc(100vh-3.5rem)]">
+        {/* Sidebar */}
+        <aside className="fixed left-0 top-14 z-40 flex h-[calc(100vh-3.5rem)] w-16 flex-col border-r border-[#424754]/20 bg-[#0b0e15] md:w-64">
+          <div className="flex flex-col gap-1 p-4">
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" active />
+            <SidebarItem icon={GitBranch} label="Explainer" onClick={() => {}} />
+            <SidebarItem icon={Columns3} label="Issues" onClick={() => {}} />
+            <SidebarItem icon={Code2} label="Editor" onClick={() => {}} />
+            <SidebarItem icon={Terminal} label="Terminal" onClick={() => {}} />
+          </div>
+          <div className="mt-auto border-t border-[#424754]/10 p-4">
+            <SidebarItem icon={FileText} label="Docs" />
+            <SidebarItem icon={LogOut} label="Sign Out" error onClick={signout} />
+          </div>
+        </aside>
 
-        {!workspaces ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                <CardHeader><Skeleton className="h-5 w-48" /></CardHeader>
-                <CardContent><Skeleton className="h-4 w-32" /></CardContent>
-              </Card>
-            ))}
+        {/* Main Content */}
+        <main className="ml-16 flex-1 bg-[#10131a] p-6 md:ml-64">
+          {/* Header */}
+          <div className="mb-12 flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <h1 className="text-[32px] font-semibold tracking-tight text-[#e1e2ec]">
+                My Workspaces
+              </h1>
+              <p className="text-sm text-[#c2c6d6]">
+                Active development environments and AI agents.
+              </p>
+            </div>
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-2 bg-[#adc6ff] text-[#001a42] hover:brightness-110 active:scale-95"
+            >
+              <Plus className="h-5 w-5" />
+              Create Workspace
+            </Button>
           </div>
-        ) : workspaces.length === 0 ? (
-          <div className="text-center py-20" style={{ color: "var(--muted-foreground)" }}>
-            <GitBranch className="w-12 h-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg mb-2">No workspaces yet</p>
-            <p className="text-sm">Add your first repository to get started</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {workspaces.map((ws: any) => (
-              <a key={ws.id} href={`/workspace/${ws.id}/explore`} className="block">
-                <Card className="hover:scale-[1.02] transition-transform cursor-pointer"
-                      style={{ background: "var(--card)", borderColor: "var(--border)" }}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2" style={{ color: "var(--foreground)" }}>
-                      <GitBranch className="w-4 h-4" style={{ color: "var(--accent)" }} />
-                      {ws.repo_owner}/{ws.repo_name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline" className={statusColors[ws.status] || ""}>
-                        {ws.status}
-                      </Badge>
-                      <span className="text-xs flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                        <Clock className="w-3 h-3" />
-                        {new Date(ws.last_active).toLocaleDateString()}
-                      </span>
+
+          <div className="flex flex-col gap-6 lg:flex-row">
+            {/* Workspace Grid */}
+            <div className="flex-1">
+              {!workspaces ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#c2c6d6]" />
+                </div>
+              ) : workspaces.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 py-20">
+                  <Code2 className="mb-4 h-12 w-12 text-[#c2c6d6]/40" />
+                  <p className="text-lg text-[#c2c6d6]">No workspaces yet</p>
+                  <p className="mt-1 text-sm text-[#c2c6d6]/60">
+                    Create a workspace to start contributing
+                  </p>
+                  <Button
+                    onClick={() => setCreateOpen(true)}
+                    className="mt-6 flex items-center gap-2 bg-[#adc6ff] text-[#001a42]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Your First Workspace
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {workspaces.map((ws: any) => (
+                    <GlassCard
+                      key={ws.id}
+                      onClick={() => router.push(`/workspace/${ws.id}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="rounded-lg bg-blue-500/10 p-2">
+                          <RotateCcw className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <h3 className="truncate text-[18px] font-semibold text-[#e1e2ec]">
+                          {ws.repo_owner}/{ws.repo_name}
+                        </h3>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-sm text-[#c2c6d6]">
+                          <span className="font-mono">{ws.branch}</span>
+                          <Badge
+                            className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
+                              ws.status === "ready"
+                                ? "border-green-500/20 bg-green-500/10 text-green-500"
+                                : ws.status === "pending"
+                                  ? "border-yellow-500/20 bg-yellow-500/10 text-yellow-500"
+                                  : "border-gray-500/20 bg-gray-500/10 text-gray-400"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                ws.status === "ready"
+                                  ? "bg-green-500"
+                                  : ws.status === "pending"
+                                    ? "bg-yellow-500"
+                                    : "bg-gray-500"
+                              }`}
+                            />
+                            {ws.status}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="mt-auto flex items-center justify-between border-t border-[#424754]/10 pt-4">
+                        <span className="text-[12px] text-[#c2c6d6]">
+                          {ws.last_active
+                            ? new Date(ws.last_active).toLocaleDateString()
+                            : "Just now"}
+                        </span>
+                        <ExternalLink className="h-4 w-4 text-[#c2c6d6]/60" />
+                      </div>
+                    </GlassCard>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right Sidebar: Stats & Activity */}
+            <aside className="flex w-full flex-col gap-6 lg:w-80">
+              {/* User Info */}
+              {user && (
+                <GlassCard>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-12 w-12 rounded-lg">
+                      <AvatarImage src={user.avatar_url} />
+                      <AvatarFallback>{user.login?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold text-[#e1e2ec]">{user.name || user.login}</p>
+                      <p className="text-xs text-[#c2c6d6]">Skill: {user.skill_level}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </a>
-            ))}
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* Quick Stats */}
+              <GlassCard>
+                <h4 className="flex items-center gap-2 text-[16px] font-semibold text-[#e1e2ec]">
+                  <BarChart3 className="h-5 w-5" />
+                  Quick Stats
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-[#424754]/10 bg-[#1d2027]/50 p-4">
+                    <span className="mb-1 block text-[12px] text-[#c2c6d6]">Active</span>
+                    <span className="text-[24px] font-bold text-green-500">
+                      {workspaces?.filter((w: any) => w.status === "ready").length || 0}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-[#424754]/10 bg-[#1d2027]/50 p-4">
+                    <span className="mb-1 block text-[12px] text-[#c2c6d6]">Total</span>
+                    <span className="text-[24px] font-bold text-[#adc6ff]">
+                      {workspaces?.length || 0}
+                    </span>
+                  </div>
+                </div>
+              </GlassCard>
+
+              {/* Recent Activity */}
+              <GlassCard>
+                <h4 className="flex items-center gap-2 text-[16px] font-semibold text-[#e1e2ec]">
+                  <History className="h-5 w-5" />
+                  Recent Activity
+                </h4>
+                <div className="mt-2 flex flex-col gap-6">
+                  {recentActivity.map((item, i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="relative flex flex-col items-center">
+                        <div className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
+                        {!item.last && (
+                          <div className="h-full w-px bg-[#424754]/20" />
+                        )}
+                      </div>
+                      <div className="-mt-1 flex flex-col gap-1">
+                        <p className="text-sm leading-tight text-[#e1e2ec]">
+                          {item.text}
+                          <span className={`font-mono ${item.codeColor}`}>{item.code}</span>
+                        </p>
+                        <span className="text-[12px] text-[#c2c6d6]">{item.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            </aside>
           </div>
-        )}
-      </main>
+        </main>
+      </div>
+
+      {/* Create Workspace Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="w-full max-w-md border border-white/10 bg-[#14141b] text-[#e1e2ec] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-[#e1e2ec]">
+              Create Workspace
+            </DialogTitle>
+            <DialogDescription className="text-sm text-[#c2c6d6]">
+              Enter a GitHub repository URL to get started.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <Input
+              placeholder="https://github.com/facebook/react"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="border-white/10 bg-[#1d2027] text-[#e1e2ec] placeholder:text-[#c2c6d6]/50 focus:border-[#adc6ff]"
+            />
+            {createError && (
+              <p className="text-sm text-red-400">{createError}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-3">
+            <DialogClose className="rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-[#c2c6d6] transition-colors hover:bg-white/5">
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !repoUrl.trim()}
+              className="bg-[#adc6ff] text-[#001a42] hover:brightness-110"
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function SidebarItem({
+  icon: Icon,
+  label,
+  active,
+  error,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  active?: boolean;
+  error?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-4 rounded-lg p-2 text-sm transition-all duration-150 ease-in-out ${
+        active
+          ? "border-r-2 border-green-500 bg-green-500/10 text-green-500"
+          : error
+            ? "text-[#c2c6d6] hover:bg-[#32353c]/30 hover:text-red-500"
+            : "text-[#c2c6d6] hover:bg-[#32353c]/30 hover:text-[#e1e2ec]"
+      }`}
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      <span className="hidden md:block">{label}</span>
+    </button>
+  );
+}
+
+function GlassCard({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  return (
+    <Card
+      onClick={onClick}
+      className={`group relative flex flex-col gap-4 rounded-xl border border-white/10 bg-[#14141b]/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-[#adc6ff]/30 hover:-translate-y-0.5 hover:bg-[#14141b]/70 ${
+        onClick ? "cursor-pointer" : ""
+      }`}
+      style={{ boxShadow: "0 0 20px -5px rgba(59, 130, 246, 0.4)" }}
+    >
+      {children}
+    </Card>
   );
 }
