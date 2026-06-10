@@ -1,31 +1,28 @@
-import httpx
 import json
+from typing import Any, Optional
+from redis.asyncio import Redis
 from app.core.config import settings
 
-BASE = settings.upstash_redis_rest_url
-TOKEN = settings.upstash_redis_rest_token
+_client: Optional[Redis] = None
 
-async def cache_set(key: str, value: any, ttl: int = 3600):
+def _get_client() -> Redis:
+    global _client
+    if _client is None:
+        _client = Redis.from_url(settings.redis_url, decode_responses=True)
+    return _client
+
+async def cache_set(key: str, value: Any, ttl: int = 3600):
+    client = _get_client()
     data = json.dumps(value)
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{BASE}/set/{key}",
-            params={"EX": str(ttl)},
-            headers={"Authorization": f"Bearer {TOKEN}"},
-            content=data,
-        )
-        resp.raise_for_status()
+    await client.set(key, data, ex=ttl)
 
-async def cache_get(key: str) -> any:
-    async with httpx.AsyncClient() as client:
-        r = await client.get(f"{BASE}/get/{key}",
-                             headers={"Authorization": f"Bearer {TOKEN}"})
-        result = r.json()
-        if result.get("result"):
-            return json.loads(result["result"])
+async def cache_get(key: str) -> Optional[Any]:
+    client = _get_client()
+    data = await client.get(key)
+    if data is not None:
+        return json.loads(data)
     return None
 
 async def cache_del(key: str):
-    async with httpx.AsyncClient() as client:
-        await client.post(f"{BASE}/del/{key}",
-                          headers={"Authorization": f"Bearer {TOKEN}"})
+    client = _get_client()
+    await client.delete(key)

@@ -48,9 +48,8 @@ async def create_workspace(request: Request, db: AsyncSession = Depends(get_db))
     await db.refresh(ws)
     from app.core.config import settings
     try:
-        from celery import Celery
-        celery_app = Celery(broker=settings.celery_broker_url)
-        celery_app.send_task("tasks.clone", args=[ws.id, repo_url, "main"], queue="default")
+        from worker.tasks.pipeline import run_analysis_pipeline
+        run_analysis_pipeline(ws.id, repo_url, "main")
     except Exception:
         ws.status = "error"
         await db.commit()

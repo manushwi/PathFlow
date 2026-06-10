@@ -3,6 +3,7 @@ import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
 from constants import REPOS_BASE_PATH
+from db_utils import get_sync_engine
 
 SKIP_DIRS = {'.git', 'node_modules', '__pycache__', '.next', 'dist', 'build', '.venv', 'venv'}
 CODE_EXTENSIONS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java', '.rb', '.php',
@@ -47,7 +48,7 @@ def parse_repo(self, prev_result: dict):
             node[parts[-1]] = {"type": "file", "size": f["size"], "ext": f["ext"]}
         _save_parse_results(workspace_id, tree, tech_stack)
         return {"workspace_id": workspace_id, "repo_path": repo_path,
-                "all_files": all_files, "tech_stack": list(tech_stack.keys())}
+                "all_files": all_files, "tech_stack": {"detected": list(tech_stack.keys())}}
     except Exception:
         from sqlalchemy import update
         from app.models.workspace import Workspace
@@ -56,8 +57,6 @@ def parse_repo(self, prev_result: dict):
             conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
             conn.commit()
         raise
-
-from db_utils import get_sync_engine
 
 def _save_parse_results(workspace_id, tree, tech_stack):
     from sqlalchemy import update

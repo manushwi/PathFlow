@@ -60,7 +60,7 @@ def build_graph(self, prev_result: dict):
             })
 
         if tech_stack:
-            techs = list(tech_stack) if isinstance(tech_stack, list) else list(tech_stack.keys())
+            techs = tech_stack if isinstance(tech_stack, list) else tech_stack.get("detected", [])
             if techs:
                 tech_id = str(len(dir_names))
                 nodes.append({

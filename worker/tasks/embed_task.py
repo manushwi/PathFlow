@@ -3,6 +3,7 @@ import os, sys, asyncio
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
 from constants import REPOS_BASE_PATH, CHUNK_SIZE, CHUNK_OVERLAP
+from db_utils import get_sync_engine
 
 def chunk_file(content: str, file_path: str, max_chars: int = CHUNK_SIZE) -> list[dict]:
     chunks = []
@@ -68,7 +69,7 @@ def embed_repo(self, prev_result: dict):
         if total > 0:
             _update_status(workspace_id, "generating_docs")
         else:
-            _update_status(workspace_id, "generating_docs")
+            _update_status(workspace_id, "error")
         return {**prev_result, "chunks_embedded": total}
     except Exception:
         from sqlalchemy import update
@@ -78,8 +79,6 @@ def embed_repo(self, prev_result: dict):
             conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
             conn.commit()
         raise
-
-from db_utils import get_sync_engine
 
 def _update_status(workspace_id, status):
     from sqlalchemy import update

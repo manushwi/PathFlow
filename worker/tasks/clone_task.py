@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
 import git
 from constants import REPOS_BASE_PATH
+from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.clone")
 def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
@@ -33,8 +34,6 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
             conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
             conn.commit()
         raise
-
-from db_utils import get_sync_engine
 
 def _update_workspace_status(workspace_id: int, status: str, sha: str = None):
     from sqlalchemy import update

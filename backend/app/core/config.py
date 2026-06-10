@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -7,8 +8,9 @@ class Settings(BaseSettings):
     github_client_secret: str
     github_redirect_uri: str
     database_url: str
-    upstash_redis_rest_url: str
-    upstash_redis_rest_token: str
+    redis_url: str = "redis://localhost:6379/0"
+    upstash_redis_rest_url: Optional[str] = None
+    upstash_redis_rest_token: Optional[str] = None
     qdrant_url: str
     qdrant_api_key: str
     openrouter_api_key: str

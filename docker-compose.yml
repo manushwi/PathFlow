@@ -23,6 +23,34 @@ services:
     volumes:
       - qdrantdata:/qdrant/storage
 
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    env_file: .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+
+  worker:
+    build: ./worker
+    command: celery -A celery_app worker --loglevel=info -Q default
+    depends_on:
+      - postgres
+      - redis
+      - qdrant
+    env_file: .env
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_URL: redis://redis:6379/0
+
 volumes:
   pgdata:
   qdrantdata:

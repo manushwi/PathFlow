@@ -11,7 +11,7 @@ def generate_docs(self, prev_result: dict):
     try:
         workspace_id = prev_result["workspace_id"]
         repo_path = prev_result["repo_path"]
-        tech_stack = prev_result.get("tech_stack", [])
+        tech_stack = prev_result.get("tech_stack", {}).get("detected", [])
         self.update_state(state="PROGRESS", meta={"status": "generating_docs", "progress": 65})
         readme = ""
         for fname in ["README.md", "readme.md", "README.rst"]:
