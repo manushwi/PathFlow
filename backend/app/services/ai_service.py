@@ -23,7 +23,13 @@ async def chat_complete(messages: list[dict], system: str = "") -> str:
                      "HTTP-Referer": settings.app_url},
             json={"model": settings.openrouter_model, "messages": msgs},
         )
-        return r.json()["choices"][0]["message"]["content"]
+        data = r.json()
+        if "error" in data:
+            msg = data["error"].get("message", str(data["error"]))
+            raise ValueError(f"OpenRouter API error: {msg}")
+        if "choices" not in data or not data["choices"]:
+            raise ValueError(f"OpenRouter returned no choices: {data}")
+        return data["choices"][0]["message"]["content"]
 
 async def chat_stream(messages: list[dict], system: str = "") -> AsyncGenerator[str, None]:
     msgs = ([{"role": "system", "content": system}] if system else []) + messages
@@ -49,8 +55,11 @@ async def chat_stream(messages: list[dict], system: str = "") -> AsyncGenerator[
                         continue
 
 async def chat_complete_json(messages: list[dict], system: str = "") -> dict:
-    sys_prompt = (system or "") + "\n\nRespond ONLY with valid JSON. No markdown, no explanation."
-    result = await chat_complete(messages, sys_prompt)
+    try:
+        sys_prompt = (system or "") + "\n\nRespond ONLY with valid JSON. No markdown, no explanation."
+        result = await chat_complete(messages, sys_prompt)
+    except Exception as e:
+        return {"error": f"AI call failed: {e}"}
     clean = result.strip()
     for prefix in ["```json", "```"]:
         if clean.startswith(prefix):

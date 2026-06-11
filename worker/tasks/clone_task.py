@@ -18,6 +18,8 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
             repo = git.Repo.clone_from(repo_url, repo_path, branch=branch, depth=1)
             sha = repo.head.commit.hexsha
         except Exception:
+            if os.path.exists(repo_path):
+                shutil.rmtree(repo_path)
             try:
                 repo = git.Repo.clone_from(repo_url, repo_path, depth=1)
                 sha = repo.head.commit.hexsha

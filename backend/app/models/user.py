@@ -14,5 +14,5 @@ class User(Base):
     github_token: Mapped[str] = mapped_column(String(500))
     skill_level: Mapped[str] = mapped_column(String(20), default="beginner")
     skill_confirmed: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     workspaces: Mapped[list["Workspace"]] = relationship(back_populates="user")

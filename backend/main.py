@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.routers import auth, workspace, issues, files, ai, git
+from app.routers import auth, workspace, issues, files, ai, git, terminal, activity
 
 app = FastAPI(title="PatchFlow API")
 
@@ -27,7 +27,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     return response
 
-for router in [auth.router, workspace.router, issues.router, files.router, ai.router, git.router]:
+for router in [auth.router, workspace.router, issues.router, files.router, ai.router, git.router, terminal.router, activity.router]:
     app.include_router(router)
 
 @app.get("/health")

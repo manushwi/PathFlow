@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.workspace import Workspace, RepoAnalysis
 from app.models.user import User
+from app.schemas.requests import CreateWorkspaceRequest
 import os, re, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../shared'))
 from constants import REPOS_BASE_PATH
@@ -29,12 +30,11 @@ async def list_workspaces(request: Request, db: AsyncSession = Depends(get_db)):
              "last_active": w.last_active} for w in workspaces]
 
 @router.post("")
-async def create_workspace(request: Request, db: AsyncSession = Depends(get_db)):
+async def create_workspace(body: CreateWorkspaceRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
     from app.services.rate_limiter import check_rate_limit, get_client_key
     check_rate_limit(get_client_key(request), max_requests=5, window_seconds=60)
-    body = await request.json()
-    repo_url = body["repo_url"].strip()
+    repo_url = body.repo_url.strip()
     owner, name = parse_repo_url(repo_url)
     existing = await db.execute(
         select(Workspace).where(Workspace.user_id == user.id, Workspace.repo_name == name))
@@ -84,6 +84,29 @@ async def get_status(workspace_id: int, request: Request, db: AsyncSession = Dep
     if not ws:
         raise HTTPException(404)
     return {"status": ws.status}
+
+@router.post("/{workspace_id}/reanalyze")
+async def reanalyze_workspace(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    user: User = await get_current_user(request, db)
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
+                                                        Workspace.user_id == user.id))
+    ws = result.scalar_one_or_none()
+    if not ws:
+        raise HTTPException(404, "Workspace not found")
+    if ws.status in ("pending", "cloning", "analyzing", "embedding", "generating_docs", "building_graph"):
+        raise HTTPException(400, "Analysis already in progress")
+    ws.status = "pending"
+    await db.commit()
+    try:
+        from app.core.celery_client import send_pipeline_task
+        send_pipeline_task(ws.id, ws.repo_url, ws.branch or "main")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to enqueue reanalyze pipeline: {e}")
+        ws.status = "error"
+        await db.commit()
+        raise HTTPException(500, "Failed to start re-analysis")
+    return {"ok": True, "status": "pending"}
 
 @router.delete("/{workspace_id}")
 async def delete_workspace(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
 import { SendHorizonal, Bot, User, Sparkles, Loader2 } from "lucide-react";
 
 interface AIAssistantPanelProps {
@@ -123,7 +124,10 @@ export function AIAssistantPanel({ workspaceId }: AIAssistantPanelProps) {
                     <span className="animate-pulse" style={{ color: "var(--accent)", animationDelay: "400ms" }}>●</span>
                   </div>
                 ) : (
-                  <ReactMarkdown className="prose prose-invert prose-sm max-w-none [&_pre]:bg-[#1a1a2e] [&_pre]:p-3 [&_pre]:rounded-lg [&_code]:text-sm">
+                  <ReactMarkdown
+                    className="prose prose-invert prose-sm max-w-none [&_pre]:bg-[#1a1a2e] [&_pre]:p-3 [&_pre]:rounded-lg [&_code]:text-sm"
+                    rehypePlugins={[rehypeHighlight]}
+                  >
                     {msg.content || ""}
                   </ReactMarkdown>
                 )}

@@ -1,3 +1,4 @@
+from celery import app
 from celery import chain, shared_task
 from tasks.clone_task import clone_repo
 from tasks.parse_task import parse_repo
@@ -33,7 +34,7 @@ def pipeline_error_handler(request, exc, traceback, workspace_id=None):
     except Exception as e:
         logger.error(f"Could not update workspace error status: {e}")
 
-
+@shared_task(name="tasks.pipeline")
 def run_analysis_pipeline(workspace_id: int, repo_url: str, branch: str = "main"):
     error_handler = pipeline_error_handler.s(workspace_id=workspace_id)
     pipeline = chain(

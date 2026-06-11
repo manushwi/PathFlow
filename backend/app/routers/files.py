@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.workspace import Workspace, WorkspaceFile
 from app.models.user import User
+from app.schemas.requests import SaveFileRequest, SaveOpenFilesRequest
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../shared'))
 from constants import REPOS_BASE_PATH
@@ -47,16 +48,15 @@ async def get_file_content(workspace_id: int, path: str, request: Request,
     return {"path": path, "content": content}
 
 @router.post("/content")
-async def save_file_content(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def save_file_content(workspace_id: int, body: SaveFileRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404)
-    body = await request.json()
-    path = body["path"]
-    content = body["content"]
+    path = body.path
+    content = body.content
     repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
     file_path = os.path.join(repo_path, path.lstrip("/"))
     if not os.path.realpath(file_path).startswith(os.path.realpath(repo_path)):
@@ -67,15 +67,14 @@ async def save_file_content(workspace_id: int, request: Request, db: AsyncSessio
     return {"ok": True}
 
 @router.post("/open-files")
-async def save_open_files(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def save_open_files(workspace_id: int, body: SaveOpenFilesRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404)
-    body = await request.json()
-    open_files = body.get("files", [])
+    open_files = body.files
     existing = await db.execute(select(WorkspaceFile).where(WorkspaceFile.workspace_id == workspace_id))
     for wf in existing.scalars():
         await db.delete(wf)

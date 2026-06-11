@@ -27,6 +27,7 @@ export const api = {
     get: (id: number) => apiFetch(`/api/workspace/${id}`),
     status: (id: number) => apiFetch(`/api/workspace/${id}/status`),
     delete: (id: number) => apiFetch(`/api/workspace/${id}`, { method: "DELETE" }),
+    reanalyze: (id: number) => apiFetch(`/api/workspace/${id}/reanalyze`, { method: "POST" }),
   },
   issues: {
     list: (workspaceId: number) => apiFetch(`/api/workspace/${workspaceId}/issues`),
@@ -51,6 +52,11 @@ export const api = {
     solveIssue: (workspaceId: number, issueNumber: number) =>
       apiFetch("/api/ai/solve-issue", { method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
+  },
+  terminal: {
+    exec: (workspaceId: number, command: string) =>
+      apiFetch("/api/terminal/exec", { method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, command }) }),
   },
   git: {
     diff: (workspaceId: number) => apiFetch(`/api/git/diff/${workspaceId}`),

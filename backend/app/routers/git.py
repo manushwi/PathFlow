@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.workspace import Workspace
 from app.models.user import User
+from app.schemas.requests import CommitRequest, CreateBranchRequest, GeneratePRRequest, CreatePRRequest
 from app.services.github_service import create_pull_request
 from app.services.ai_service import chat_complete_json
 import os, sys
@@ -15,18 +16,16 @@ import git
 router = APIRouter(prefix="/api/git", tags=["git"])
 
 def get_repo(workspace_id: int) -> git.Repo:
-    """Caller must verify workspace ownership via DB before calling this."""
     path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
     if not os.path.exists(path):
         raise HTTPException(404, "Repository not found locally")
     return git.Repo(path)
 
 @router.post("/branch")
-async def create_branch(request: Request, db: AsyncSession = Depends(get_db)):
+async def create_branch_endpoint(body: CreateBranchRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
-    branch_name = body["branch_name"]
+    workspace_id = body.workspace_id
+    branch_name = body.name
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
@@ -53,11 +52,10 @@ async def get_diff(workspace_id: int, request: Request, db: AsyncSession = Depen
     return {"diff": diff, "staged": staged, "untracked": untracked}
 
 @router.post("/commit")
-async def commit_changes(request: Request, db: AsyncSession = Depends(get_db)):
+async def commit_changes(body: CommitRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
-    message = body["message"]
+    workspace_id = body.workspace_id
+    message = body.message
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
@@ -69,12 +67,11 @@ async def commit_changes(request: Request, db: AsyncSession = Depends(get_db)):
     return {"sha": repo.head.commit.hexsha, "message": message}
 
 @router.post("/pr/generate")
-async def generate_pr(request: Request, db: AsyncSession = Depends(get_db)):
+async def generate_pr(body: GeneratePRRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
-    issue_number = body.get("issue_number")
-    diff_content = body.get("diff", "")
+    workspace_id = body.workspace_id
+    issue_number = body.issue_number
+    diff_content = body.diff
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
@@ -91,10 +88,9 @@ Return JSON:
     return pr_content
 
 @router.post("/pr/create")
-async def submit_pr(request: Request, db: AsyncSession = Depends(get_db)):
+async def submit_pr(body: CreatePRRequest, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
+    workspace_id = body.workspace_id
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
@@ -106,7 +102,7 @@ async def submit_pr(request: Request, db: AsyncSession = Depends(get_db)):
     origin.push(ws.branch)
     repo = get_repo(workspace_id)
     pr = await create_pull_request(user.github_token, ws.repo_owner, ws.repo_name,
-                                    body["title"], body["body"], ws.branch, repo.active_branch.name)
+                                    body.title, body.body, ws.branch, repo.active_branch.name)
     ws.status = "pr_submitted"
     await db.commit()
     return {"pr_url": pr.get("html_url"), "pr_number": pr.get("number")}

@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import useSWR from "swr";
-import { api } from "@/lib/api";
+import { api, apiFetch } from "@/lib/api";
 import { SkillDialog } from "@/components/dashboard/SkillDialog";
 import { toast } from "sonner";
 
@@ -59,15 +59,7 @@ export default function Dashboard() {
 
   const { data: activity } = useSWR(
     isAuthenticated ? "/activity" : null,
-    () => api.workspace.list().then(ws =>
-      (ws || []).slice(0, 5).map((w: any) => ({
-        dot: w.status === "ready" ? "bg-green-500" : w.status === "error" ? "bg-red-500" : "bg-yellow-500",
-        text: w.status === "ready" ? "Workspace " : w.status === "error" ? "Failed: " : "Analyzing ",
-        code: w.repo_name,
-        codeColor: w.status === "ready" ? "text-green-500" : w.status === "error" ? "text-red-500" : "text-yellow-500",
-        time: w.last_active ? new Date(w.last_active).toLocaleDateString() : "recent",
-      }))
-    ),
+    () => apiFetch("/api/activity"),
   );
 
   const handleCreate = async () => {
@@ -97,7 +89,7 @@ export default function Dashboard() {
     );
   }
 
-  const displayActivity = activity && activity.length > 0 ? activity : [];
+  const displayActivity = Array.isArray(activity) ? activity : [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
@@ -139,7 +131,7 @@ export default function Dashboard() {
             <SidebarItem icon={GitBranch} label="Explainer" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}`)} />
             <SidebarItem icon={Columns3} label="Issues" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}/issues`)} />
             <SidebarItem icon={Code2} label="Editor" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}`)} />
-            <SidebarItem icon={Terminal} label="Terminal" onClick={() => {}} />
+            <SidebarItem icon={Terminal} label="Terminal" onClick={() => workspaces?.[0] && router.push(`/workspace/${workspaces[0].id}?tab=terminal`)} />
           </div>
           <div className="mt-auto border-t border-[#424754]/10 p-4">
             <SidebarItem icon={FileText} label="Docs" />
@@ -298,17 +290,21 @@ export default function Dashboard() {
 ) : displayActivity.map((item: any, i: number) => (
                     <div key={i} className="flex gap-4">
                       <div className="relative flex flex-col items-center">
-                        <div className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />
-                        {!item.last && (
+                        <div className="h-2.5 w-2.5 rounded-full bg-[#adc6ff]" />
+                        {i < displayActivity.length - 1 && (
                           <div className="h-full w-px bg-[#424754]/20" />
                         )}
                       </div>
                       <div className="-mt-1 flex flex-col gap-1">
                         <p className="text-sm leading-tight text-[#e1e2ec]">
                           {item.text}
-                          <span className={`font-mono ${item.codeColor}`}>{item.code}</span>
+                          {item.repo && (
+                            <span className="font-mono text-[#adc6ff]"> {item.repo}</span>
+                          )}
                         </p>
-                        <span className="text-[12px] text-[#c2c6d6]">{item.time}</span>
+                        <span className="text-[12px] text-[#c2c6d6]">
+                          {item.timestamp ? new Date(item.timestamp).toLocaleDateString() : "recent"}
+                        </span>
                       </div>
                     </div>
                   ))}

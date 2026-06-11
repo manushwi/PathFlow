@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -10,16 +10,20 @@ import { FileTree } from "@/components/repo/FileTree";
 import { ArchitectureDiagram } from "@/components/repo/ArchitectureDiagram";
 import { IssueKanban } from "@/components/issues/IssueKanban";
 import { IDELayout } from "@/components/ide/IDELayout";
+import { TerminalPanel } from "@/components/terminal/Terminal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, FileCode, GitBranch, Bug, Code2, BookOpen } from "lucide-react";
+import { ArrowLeft, FileCode, GitBranch, Bug, Code2, BookOpen, RotateCcw, Terminal as TerminalIcon } from "lucide-react";
 
 export default function WorkspacePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const workspaceId = Number(params.id);
+  const tabFromUrl = searchParams.get("tab") || "explain";
   const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: ws, isLoading } = useSWR(isAuthenticated ? `/workspace/${workspaceId}` : null, () => api.workspace.get(workspaceId), {
     refreshInterval: (data) => {
@@ -107,6 +111,17 @@ export default function WorkspacePage() {
 
   const isReady = ws?.status === "ready";
 
+  const handleReanalyze = async () => {
+    setReanalyzing(true);
+    try {
+      await api.workspace.reanalyze(workspaceId);
+    } catch (e: any) {
+      console.error("Re-analysis failed", e);
+    } finally {
+      setReanalyzing(false);
+    }
+  };
+
   return (
     <ErrorBoundary>
     <div className="h-screen flex flex-col" style={{ background: "var(--background)" }}>
@@ -116,8 +131,8 @@ export default function WorkspacePage() {
         showBack
       />
 
-      <Tabs defaultValue="explain" className="flex flex-col flex-1 min-h-0">
-        <div className="border-b shrink-0 px-6" style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
+      <Tabs defaultValue={tabFromUrl} className="flex flex-col flex-1 min-h-0">
+        <div className="border-b shrink-0 px-6 flex items-center justify-between" style={{ borderColor: "var(--border)", background: "var(--sidebar)" }}>
           <TabsList style={{ background: "transparent", borderColor: "var(--border)" }}>
             <TabsTrigger value="explain" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" /> Explain
@@ -128,7 +143,25 @@ export default function WorkspacePage() {
             <TabsTrigger value="code" className="flex items-center gap-2">
               <Code2 className="w-4 h-4" /> Code
             </TabsTrigger>
+            <TabsTrigger value="terminal" className="flex items-center gap-2">
+              <TerminalIcon className="w-4 h-4" /> Terminal
+            </TabsTrigger>
           </TabsList>
+          {isReady && (
+            <button
+              onClick={handleReanalyze}
+              disabled={reanalyzing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{
+                color: "var(--muted-foreground)",
+                border: "1px solid var(--border)",
+                background: "transparent",
+              }}
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${reanalyzing ? "animate-spin" : ""}`} />
+              {reanalyzing ? "Re-analyzing..." : "Refresh analysis"}
+            </button>
+          )}
         </div>
 
         <TabsContent value="explain" className="flex-1 min-h-0 p-0 m-0 data-[state=active]:flex">
@@ -241,6 +274,15 @@ export default function WorkspacePage() {
 
         <TabsContent value="code" className="flex-1 min-h-0 p-0 m-0 data-[state=active]:flex">
           <IDELayout workspaceId={workspaceId} activeIssueNumber={ws?.active_issue_number ?? undefined} />
+        </TabsContent>
+        <TabsContent value="terminal" className="flex-1 min-h-0 p-0 m-0 data-[state=active]:flex">
+          {isReady ? (
+            <TerminalPanel workspaceId={workspaceId} />
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <p style={{ color: "var(--muted-foreground)" }}>Analysis not ready yet</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

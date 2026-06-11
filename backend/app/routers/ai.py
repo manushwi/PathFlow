@@ -9,18 +9,18 @@ from app.models.workspace import Workspace, RepoAnalysis, ChatMessage
 from app.models.user import User
 from app.services.ai_service import chat_stream, get_embedding, chat_complete_json
 from app.services.vector_service import search_similar
+from app.schemas.requests import ChatRequest, SolveIssueRequest
 from shared.prompts import build_chat_prompt, SYSTEM_AI_SOLVER
 import json
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 @router.post("/chat")
-async def stream_chat(request: Request, db: AsyncSession = Depends(get_db)):
+async def stream_chat(body: ChatRequest, request: Request, db: AsyncSession = Depends(get_db)):
     check_rate_limit(get_client_key(request), max_requests=30, window_seconds=60)
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
-    message = body["message"]
+    workspace_id = body.workspace_id
+    message = body.message
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()
@@ -61,12 +61,11 @@ async def get_chat_history(workspace_id: int, request: Request, db: AsyncSession
                           "created_at": m.created_at} for m in messages]}
 
 @router.post("/solve-issue")
-async def solve_issue(request: Request, db: AsyncSession = Depends(get_db)):
+async def solve_issue(body: SolveIssueRequest, request: Request, db: AsyncSession = Depends(get_db)):
     check_rate_limit(get_client_key(request), max_requests=10, window_seconds=60)
     user: User = await get_current_user(request, db)
-    body = await request.json()
-    workspace_id = body["workspace_id"]
-    issue_number = body["issue_number"]
+    workspace_id = body.workspace_id
+    issue_number = body.issue_number
     result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
                                                         Workspace.user_id == user.id))
     ws = result.scalar_one_or_none()

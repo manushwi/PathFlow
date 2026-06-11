@@ -16,7 +16,7 @@ def send_pipeline_task(workspace_id: int, repo_url: str, branch: str = "main"):
     """
     celery = _get_celery()
     celery.send_task(
-        "tasks.clone",
+        "tasks.pipeline",
         args=[workspace_id, repo_url, branch],
-        queue="celery",
+        queue="default",
     )

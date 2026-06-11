@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.core.security import create_session_token
 from app.core.config import settings
 from app.models.user import User
+from app.schemas.requests import UpdateSkillRequest
 from app.services.github_service import (
     exchange_code_for_token, get_github_user,
     get_user_repos, get_user_languages, estimate_skill_level
@@ -74,11 +75,10 @@ async def signout(response: Response):
     return {"ok": True}
 
 @router.patch("/skill")
-async def update_skill(request: Request, db: AsyncSession = Depends(get_db)):
+async def update_skill(body: UpdateSkillRequest, request: Request, db: AsyncSession = Depends(get_db)):
     from app.core.deps import get_current_user
     user = await get_current_user(request, db)
-    body = await request.json()
-    user.skill_level = body["skill_level"]
+    user.skill_level = body.skill_level
     user.skill_confirmed = True
     await db.commit()
     return {"ok": True}
