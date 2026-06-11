@@ -13,9 +13,10 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false 
 
 interface IDELayoutProps {
   workspaceId: number;
+  activeIssueNumber?: number;
 }
 
-export function IDELayout({ workspaceId }: IDELayoutProps) {
+export function IDELayout({ workspaceId, activeIssueNumber }: IDELayoutProps) {
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState("");
   const [editedContent, setEditedContent] = useState("");
@@ -187,7 +188,7 @@ export function IDELayout({ workspaceId }: IDELayoutProps) {
             {rightPanel === "ai" ? (
               <AIAssistantPanel workspaceId={workspaceId} />
             ) : (
-              <GitPanel workspaceId={workspaceId} />
+              <GitPanel workspaceId={workspaceId} activeIssueNumber={activeIssueNumber} />
             )}
           </div>
         </ResizablePanel>

@@ -13,28 +13,7 @@ from app.services.github_service import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-@router.get("/dev-login")
-async def dev_login(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(User).where(User.id == 1))
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User(
-            github_id=999999,
-            login="mockuser",
-            name="Mock User",
-            avatar_url="https://github.com/identicons/mockuser.png",
-            email="mockuser@example.com",
-            github_token="mock_token",
-            skill_level="intermediate",
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    session_token = create_session_token(user.id)
-    response = RedirectResponse(f"{settings.frontend_url}/dashboard")
-    response.set_cookie("session", session_token, httponly=True, samesite="lax",
-                        max_age=86400 * 30, secure=settings.environment == "production")
-    return response
+
 
 @router.get("/github")
 async def github_login():

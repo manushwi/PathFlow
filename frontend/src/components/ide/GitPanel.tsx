@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 
 interface GitPanelProps {
   workspaceId: number;
+  activeIssueNumber?: number;
 }
 
-export function GitPanel({ workspaceId }: GitPanelProps) {
+export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
   const { data, mutate } = useSWR(`/diff/${workspaceId}`, () => api.git.diff(workspaceId));
   const [commitMsg, setCommitMsg] = useState("");
   const [committing, setCommitting] = useState(false);
@@ -128,9 +129,13 @@ export function GitPanel({ workspaceId }: GitPanelProps) {
                   style={{ background: "var(--accent)" }} className="flex-1">
             <MessageSquare className="w-3 h-3 mr-1" /> Commit
           </Button>
-          <Button size="sm" variant="outline" onClick={handleGeneratePR}
+          <Button size="sm" variant="outline"
+                  onClick={() => activeIssueNumber
+                    ? handleGeneratePRWithIssue(activeIssueNumber)
+                    : handleGeneratePR()}
                   style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
-            <GitPullRequest className="w-3 h-3 mr-1" /> PR
+            <GitPullRequest className="w-3 h-3 mr-1" />
+            {activeIssueNumber ? `PR #${activeIssueNumber}` : "PR"}
           </Button>
         </div>
       </div>

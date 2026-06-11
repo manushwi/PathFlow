@@ -97,13 +97,7 @@ export default function Dashboard() {
     );
   }
 
-  const recentActivity = [
-    { dot: "bg-green-500", text: "Patch AI completed ", code: "auth-fix", codeColor: "text-green-500", time: "4 minutes ago" },
-    { dot: "bg-blue-400", text: 'PR #122 approved by ', code: "@adamwathan", codeColor: "text-blue-400", time: "1 hour ago" },
-    { dot: "bg-orange-400", text: "Workspace ", code: "next-js-99", codeColor: "text-orange-400", time: "3 hours ago", last: true },
-  ];
-
-  const displayActivity = activity || recentActivity;
+  const displayActivity = activity && activity.length > 0 ? activity : [];
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0a0a0a" }}>
@@ -297,7 +291,11 @@ export default function Dashboard() {
                   Recent Activity
                 </h4>
                 <div className="mt-2 flex flex-col gap-6">
-                  {displayActivity.map((item: any, i: number) => (
+                  {displayActivity.length === 0 ? (
+  <p className="text-sm text-center py-6" style={{ color: "var(--muted-foreground)" }}>
+    No recent activity. Create a workspace to get started.
+  </p>
+) : displayActivity.map((item: any, i: number) => (
                     <div key={i} className="flex gap-4">
                       <div className="relative flex flex-col items-center">
                         <div className={`h-2.5 w-2.5 rounded-full ${item.dot}`} />

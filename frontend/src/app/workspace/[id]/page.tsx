@@ -22,7 +22,11 @@ export default function WorkspacePage() {
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: ws, isLoading } = useSWR(isAuthenticated ? `/workspace/${workspaceId}` : null, () => api.workspace.get(workspaceId), {
-    refreshInterval: 3000,
+    refreshInterval: (data) => {
+      if (!data) return 3000;
+      if (data.status === "ready" || data.status === "error") return 0;
+      return 3000;
+    },
     revalidateOnFocus: false,
   });
   const { data: files } = useSWR(isAuthenticated ? `/files/${workspaceId}` : null, () => api.files.tree(workspaceId));
@@ -236,7 +240,7 @@ export default function WorkspacePage() {
         </TabsContent>
 
         <TabsContent value="code" className="flex-1 min-h-0 p-0 m-0 data-[state=active]:flex">
-          <IDELayout workspaceId={workspaceId} />
+          <IDELayout workspaceId={workspaceId} activeIssueNumber={ws?.active_issue_number ?? undefined} />
         </TabsContent>
       </Tabs>
     </div>

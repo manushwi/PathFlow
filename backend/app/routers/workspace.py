@@ -46,11 +46,12 @@ async def create_workspace(request: Request, db: AsyncSession = Depends(get_db))
     db.add(ws)
     await db.commit()
     await db.refresh(ws)
-    from app.core.config import settings
     try:
-        from worker.tasks.pipeline import run_analysis_pipeline
-        run_analysis_pipeline(ws.id, repo_url, "main")
-    except Exception:
+        from app.core.celery_client import send_pipeline_task
+        send_pipeline_task(ws.id, repo_url, "main")
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to enqueue pipeline: {e}")
         ws.status = "error"
         await db.commit()
     return {"id": ws.id, "existing": False}
@@ -93,11 +94,13 @@ async def delete_workspace(workspace_id: int, request: Request, db: AsyncSession
     if not ws:
         raise HTTPException(404)
     # Clean up Qdrant vectors
+    import logging
+    _log = logging.getLogger(__name__)
     try:
         from app.services.vector_service import delete_workspace_vectors
         await delete_workspace_vectors(workspace_id)
-    except Exception:
-        pass
+    except Exception as e:
+        _log.warning(f"Qdrant cleanup failed for workspace {workspace_id}: {e}")
     # Clean up local repo files
     import shutil
     repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
