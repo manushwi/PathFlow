@@ -9,9 +9,13 @@ from app.models.workspace import Workspace, RepoAnalysis, ChatMessage
 from app.models.user import User
 from app.services.ai_service import chat_stream, get_embedding, chat_complete_json
 from app.services.vector_service import search_similar
-from app.schemas.requests import ChatRequest, SolveIssueRequest
+from app.schemas.requests import ChatRequest, SolveIssueRequest, SolveAndPRRequest
+from app.services.github_service import create_pull_request, check_collab, fork_repo, get_repo_issues
 from shared.prompts import build_chat_prompt, SYSTEM_AI_SOLVER
-import json
+import json, os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../shared'))
+from constants import REPOS_BASE_PATH
+import git
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -104,3 +108,133 @@ Return JSON:
 }}"""
     solution = await chat_complete_json([{"role": "user", "content": prompt}], SYSTEM_AI_SOLVER)
     return solution
+
+
+@router.post("/solve-and-pr")
+async def solve_issue_and_pr(body: SolveAndPRRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    check_rate_limit(get_client_key(request), max_requests=5, window_seconds=120)
+    user: User = await get_current_user(request, db)
+    workspace_id = body.workspace_id
+    issue_number = body.issue_number
+    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
+                                                        Workspace.user_id == user.id))
+    ws = result.scalar_one_or_none()
+    if not ws:
+        raise HTTPException(404)
+    raw_issues = await get_repo_issues(user.github_token, ws.repo_owner, ws.repo_name)
+    issue = next((i for i in raw_issues if i["number"] == issue_number), None)
+    if not issue:
+        raise HTTPException(404)
+    # Check push permissions — fork if needed
+    is_collab = await check_collab(user.github_token, ws.repo_owner, ws.repo_name, user.login)
+    # 1. Create and checkout branch
+    branch_name = f"fix/issue-{issue_number}"
+    repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
+    if not os.path.exists(repo_path):
+        raise HTTPException(400, "Repository not cloned yet")
+    repo = git.Repo(repo_path)
+    existing = [h.name for h in repo.heads]
+    if branch_name in existing:
+        repo.heads[branch_name].checkout()
+    else:
+        new_branch = repo.create_head(branch_name)
+        new_branch.checkout()
+    ws.branch = branch_name
+    await db.commit()
+    # 2. Get AI solution
+    query_emb = await get_embedding(f"{issue['title']} {(issue.get('body') or '')[:400]}")
+    context_chunks = await search_similar(workspace_id, query_emb, limit=10)
+    analysis_result = await db.execute(select(RepoAnalysis).where(RepoAnalysis.workspace_id == workspace_id))
+    analysis = analysis_result.scalar_one_or_none()
+    docs = analysis.docs_json if analysis else {}
+    context_str = "\n\n".join([f"// {c['file_path']}\n{c['content'][:600]}" for c in context_chunks])
+    prompt = f"""Fix this GitHub issue. For each file, return the COMPLETE new file content, not a diff.
+
+Issue #{issue['number']}: {issue['title']}
+{issue.get('body', '')[:800]}
+
+Relevant code:
+{context_str}
+
+Return JSON:
+{{
+  "plan": ["step 1", "step 2"],
+  "files_to_change": [
+    {{
+      "path": "relative/path.py",
+      "description": "what to change",
+      "content": "COMPLETE new file content after the fix (include the full file)"
+    }}
+  ],
+  "explanation": "overall approach",
+  "commit_message": "concise commit message describing the fix"
+}}"""
+    solution = await chat_complete_json([{"role": "user", "content": prompt}], SYSTEM_AI_SOLVER)
+    if not solution or "files_to_change" not in solution:
+        return {"error": "AI failed to produce a valid solution", "solution": solution}
+    # 3. Write files
+    files_changed = []
+    for fc in solution.get("files_to_change", []):
+        content = fc.get("content", "")
+        if not content:
+            continue
+        file_path = os.path.join(repo_path, fc["path"].lstrip("/"))
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        files_changed.append(fc["path"])
+    if not files_changed:
+        return {"error": "AI failed to produce any file changes", "files_changed": []}
+    # 4. Commit
+    if not repo.is_dirty(untracked_files=True):
+        return {"error": "No changes to commit after applying solution", "files_changed": files_changed}
+    commit_msg = solution.get("commit_message", f"Fix issue #{issue_number}: {issue['title'][:60]}")
+    repo.git.add("-A")
+    repo.index.commit(commit_msg)
+    # 5. Push
+    push_success = False
+    head_for_pr = branch_name
+    if is_collab:
+        try:
+            origin = repo.remote("origin")
+            push_url = ws.repo_url.replace("https://", f"https://x-access-token:{user.github_token}@")
+            origin.set_url(push_url)
+            origin.push(branch_name)
+            push_success = True
+        except git.GitCommandError as e:
+            if "403" in str(e.stderr or ""):
+                return {"error": f"Push failed: your GitHub token doesn't have write access to {ws.repo_owner}/{ws.repo_name}. You need to be a collaborator on the repository.", "branch": branch_name, "files_changed": files_changed}
+            repo.git.push("origin", branch_name, force=True)
+            push_success = True
+    else:
+        try:
+            fork_data = await fork_repo(user.github_token, ws.repo_owner, ws.repo_name)
+            fork_clone_url = fork_data.get("clone_url")
+            if not fork_clone_url:
+                return {"error": "Fork failed — could not determine fork URL", "branch": branch_name, "files_changed": files_changed}
+            fork_push_url = fork_clone_url.replace("https://", f"https://x-access-token:{user.github_token}@")
+            repo.git.push(fork_push_url, branch_name)
+            head_for_pr = f"{user.login}:{branch_name}"
+            push_success = True
+        except Exception as e:
+            return {"error": f"Fork + push failed: {e}", "branch": branch_name, "files_changed": files_changed}
+    # 6. Create PR
+    pr_title = solution.get("commit_message", f"Fix issue #{issue_number}: {issue['title'][:80]}")
+    pr_body = f"## Summary\n{issue.get('body', '')[:500]}\n\n## Changes\n{solution.get('explanation', '')}\n\n## Plan\n" + "\n".join(f"- {s}" for s in solution.get("plan", []))
+    try:
+        pr = await create_pull_request(
+            user.github_token, ws.repo_owner, ws.repo_name,
+            pr_title, pr_body, head_for_pr, "main"
+        )
+        pr_url = pr.get("html_url", "")
+        pr_number = pr.get("number", 0)
+    except Exception as e:
+        return {"error": f"PR creation failed: {e}", "branch": branch_name, "files_changed": files_changed}
+    ws.status = "pr_submitted"
+    await db.commit()
+    return {
+        "pr_url": pr_url,
+        "pr_number": pr_number,
+        "branch": branch_name,
+        "files_changed": files_changed,
+    }

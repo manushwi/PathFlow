@@ -6,8 +6,15 @@ from constants import REPOS_BASE_PATH
 from db_utils import get_sync_engine
 
 SKIP_DIRS = {'.git', 'node_modules', '__pycache__', '.next', 'dist', 'build', '.venv', 'venv'}
-CODE_EXTENSIONS = {'.py', '.js', '.ts', '.tsx', '.jsx', '.go', '.rs', '.java', '.rb', '.php',
-                   '.cpp', '.c', '.h', '.css', '.html', '.md', '.json', '.yaml', '.yml', '.toml'}
+BINARY_EXTENSIONS = {
+    '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.bmp', '.tiff', '.psd', '.raw', '.heic',
+    '.mp3', '.wav', '.ogg', '.flac', '.aac', '.mp4', '.mkv', '.avi', '.mov', '.wmv', '.webm',
+    '.zip', '.tar', '.gz', '.rar', '.7z', '.bz2', '.xz', '.tgz',
+    '.exe', '.dll', '.so', '.dylib', '.bin', '.out', '.app', '.msi', '.deb', '.rpm',
+    '.woff', '.woff2', '.ttf', '.eot', '.otf',
+    '.db', '.sqlite', '.sqlite3', '.pyc', '.class', '.o', '.obj',
+    '.pdf', '.docx', '.xlsx', '.pptx',
+}
 STACK_INDICATORS = {
     "package.json": "Node.js", "requirements.txt": "Python", "go.mod": "Go",
     "Cargo.toml": "Rust", "pom.xml": "Java", "Gemfile": "Ruby",
@@ -33,9 +40,12 @@ def parse_repo(self, prev_result: dict):
                 if rel_path.startswith("./"):
                     rel_path = rel_path[2:]
                 ext = os.path.splitext(fname)[1]
-                if ext in CODE_EXTENSIONS:
-                    size = os.path.getsize(fpath)
-                    all_files.append({"path": rel_path, "ext": ext, "size": size})
+                if ext.lower() not in BINARY_EXTENSIONS:
+                    try:
+                        size = os.path.getsize(fpath)
+                        all_files.append({"path": rel_path, "ext": ext, "size": size})
+                    except OSError:
+                        continue
                     for indicator, stack_name in STACK_INDICATORS.items():
                         if indicator in rel_path.lower():
                             tech_stack[stack_name] = True

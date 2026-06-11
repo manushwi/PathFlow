@@ -7,10 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
-import { DiffViewer } from "@/components/diff/DiffViewer";
-import { AlertTriangle, FileCode, BookOpen, Lightbulb, Wand2, Loader2 } from "lucide-react";
+import { AlertTriangle, FileCode, BookOpen, Lightbulb, Wand2, Loader2, Pencil, Download, CheckCircle, ExternalLink, GitBranch } from "lucide-react";
 
 const riskColors: Record<string, string> = {
   low: "bg-green-500/20 text-green-400",
@@ -29,8 +26,12 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [solving, setSolving] = useState(false);
-  const [solution, setSolution] = useState<any>(null);
-  const [solutionOpen, setSolutionOpen] = useState(false);
+  const [solvingStep, setSolvingStep] = useState("");
+  const [solvedResult, setSolvedResult] = useState<any>(null);
+  const [solvedOpen, setSolvedOpen] = useState(false);
+  const [manualBranch, setManualBranch] = useState("");
+  const [manualCreating, setManualCreating] = useState(false);
+  const [manualDialog, setManualDialog] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -40,18 +41,63 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
       .finally(() => setLoading(false));
   }, [workspaceId, issue.number]);
 
-  const handleSolve = async () => {
+  const handleSolveAI = async () => {
     setSolving(true);
+    setSolvingStep("Creating branch...");
     try {
-      const result = await api.ai.solveIssue(workspaceId, issue.number);
-      setSolution(result);
-      setSolutionOpen(true);
+      setSolvingStep("Generating solution...");
+      const result = await api.ai.solveAndPR(workspaceId, issue.number);
+      if (result.error) {
+        setSolvedResult({ error: result.error });
+        setSolvedOpen(true);
+      } else {
+        setSolvedResult(result);
+        setSolvedOpen(true);
+      }
     } catch (e: any) {
-      setSolution({ error: e.message });
-      setSolutionOpen(true);
+      setSolvedResult({ error: e.message });
+      setSolvedOpen(true);
     } finally {
       setSolving(false);
     }
+  };
+
+  const handleSolveManual = async () => {
+    setManualCreating(true);
+    try {
+      const res = await api.git.manualBranch(workspaceId, issue.number);
+      setManualBranch(res.branch);
+      setManualDialog(true);
+    } catch (e: any) {
+      setSolvedResult({ error: e.message });
+      setSolvedOpen(true);
+    } finally {
+      setManualCreating(false);
+    }
+  };
+
+  const handleDownloadZip = async () => {
+    try {
+      const res = await api.git.downloadZip(workspaceId);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `repo-${manualBranch}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      setSolvedResult({ error: "Failed to download zip" });
+      setSolvedOpen(true);
+    }
+  };
+
+  const handleEditInBrowser = () => {
+    setManualDialog(false);
+    onClose();
+    router.push(`/workspace/${workspaceId}?tab=code`);
   };
 
   return (
@@ -125,22 +171,45 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
                 </Badge>
               </div>
 
-              <div className="flex gap-2 pt-4">
+              {/* Buttons */}
+              <div className="flex flex-col gap-2 pt-4">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSolveAI}
+                    disabled={solving}
+                    className="flex-1"
+                    style={{ background: "var(--accent)" }}
+                  >
+                    {solving ? (
+                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> {solvingStep}</>
+                    ) : (
+                      <><Wand2 className="w-4 h-4 mr-1" /> Solve with AI</>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleSolveManual}
+                    disabled={manualCreating}
+                    variant="outline"
+                    className="flex-1"
+                    style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                  >
+                    {manualCreating ? (
+                      <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Creating branch...</>
+                    ) : (
+                      <><Pencil className="w-4 h-4 mr-1" /> Solve Manually</>
+                    )}
+                  </Button>
+                </div>
                 <Button
-                  onClick={() => router.push(`/workspace/${workspaceId}?tab=code&issue=${issue.number}`)}
-                  style={{ background: "var(--accent)" }}>
-                  Open in IDE
-                </Button>
-                <Button
-                  onClick={handleSolve}
-                  disabled={solving}
+                  onClick={() => {
+                    onClose();
+                    router.push(`/workspace/${workspaceId}?tab=code`);
+                  }}
                   variant="outline"
-                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }}>
-                  {solving ? (
-                    <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Solving...</>
-                  ) : (
-                    <><Wand2 className="w-4 h-4 mr-1" /> Solve with AI</>
-                  )}
+                  className="w-full"
+                  style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
+                >
+                  <FileCode className="w-4 h-4 mr-1" /> Open in IDE
                 </Button>
               </div>
             </div>
@@ -152,61 +221,119 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
         </SheetContent>
       </Sheet>
 
-      <Dialog open={solutionOpen} onOpenChange={setSolutionOpen}>
+      {/* Solve with AI - Result Dialog */}
+      <Dialog open={solvedOpen} onOpenChange={setSolvedOpen}>
         <DialogContent
-          className="w-full max-w-3xl max-h-[85vh]"
+          className="w-full max-w-lg"
           style={{ background: "var(--card)", borderColor: "var(--border)" }}
         >
           <DialogHeader>
             <DialogTitle style={{ color: "var(--foreground)" }}>
-              AI Solution — #{issue.number} {issue.title}
+              {solvedResult?.error ? "Solution Failed" : "Solution Complete"}
             </DialogTitle>
             <DialogDescription style={{ color: "var(--muted-foreground)" }}>
-              Generated solution with file changes
+              {solvedResult?.error
+                ? solvedResult.error
+                : `Issue #${issue.number} — ${issue.title.slice(0, 60)}`}
             </DialogDescription>
           </DialogHeader>
 
-          {solution?.error ? (
+          {solvedResult?.error ? (
             <div className="p-4 rounded-lg text-sm" style={{ background: "rgba(239, 68, 68, 0.1)", color: "rgb(239, 68, 68)" }}>
-              Failed to generate solution: {solution.error}
+              {solvedResult.error}
             </div>
-          ) : solution ? (
-            <ScrollArea className="flex-1 max-h-[65vh] pr-4">
-              <div className="space-y-6">
-                {solution.explanation && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>Explanation</h4>
-                    <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>{solution.explanation}</p>
-                  </div>
-                )}
-
-                {solution.plan && solution.plan.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>Plan</h4>
-                    <ol className="space-y-1">
-                      {solution.plan.map((step: string, i: number) => (
-                        <li key={i} className="text-sm flex gap-2" style={{ color: "var(--muted-foreground)" }}>
-                          <span style={{ color: "var(--accent)" }}>{i + 1}.</span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-
-                {solution.files_to_change && solution.files_to_change.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>File Changes</h4>
-                    <DiffViewer files={solution.files_to_change} />
-                  </div>
-                )}
+          ) : solvedResult ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm" style={{ color: "var(--foreground)" }}>
+                <CheckCircle className="w-5 h-5" style={{ color: "#22c55e" }} />
+                <span>Branch: <span className="font-mono" style={{ color: "var(--accent)" }}>{solvedResult.branch}</span></span>
               </div>
-            </ScrollArea>
+              {solvedResult.files_changed && solvedResult.files_changed.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>Files changed:</p>
+                  <ul className="space-y-1">
+                    {solvedResult.files_changed.map((f: string) => (
+                      <li key={f} className="text-xs font-mono px-2 py-1 rounded" style={{ background: "var(--sidebar)", color: "var(--accent)" }}>{f}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {solvedResult.pr_url && (
+                <a
+                  href={solvedResult.pr_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: "var(--accent)", color: "white" }}
+                >
+                  <ExternalLink className="w-4 h-4" /> View Pull Request
+                </a>
+              )}
+            </div>
           ) : (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--accent)" }} />
             </div>
           )}
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setSolvedOpen(false)}
+              variant="outline"
+              style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Solve Manually - Choice Dialog */}
+      <Dialog open={manualDialog} onOpenChange={setManualDialog}>
+        <DialogContent
+          className="w-full max-w-md"
+          style={{ background: "var(--card)", borderColor: "var(--border)" }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: "var(--foreground)" }}>
+              Branch Created
+            </DialogTitle>
+            <DialogDescription style={{ color: "var(--muted-foreground)" }}>
+              Branch <span className="font-mono" style={{ color: "var(--accent)" }}>{manualBranch}</span> is ready. Choose how to proceed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-4">
+            <button
+              onClick={handleEditInBrowser}
+              className="flex items-center gap-4 p-4 rounded-lg text-left transition-colors hover:opacity-80"
+              style={{ background: "var(--sidebar)", border: "1px solid var(--border)" }}
+            >
+              <div className="rounded-lg p-2" style={{ background: "var(--accent)20" }}>
+                <Pencil className="w-5 h-5" style={{ color: "var(--accent)" }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>Edit in Browser</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                  Use the built-in editor and Git panel to make changes and push directly
+                </p>
+              </div>
+            </button>
+            <button
+              onClick={handleDownloadZip}
+              className="flex items-center gap-4 p-4 rounded-lg text-left transition-colors hover:opacity-80"
+              style={{ background: "var(--sidebar)", border: "1px solid var(--border)" }}
+            >
+              <div className="rounded-lg p-2" style={{ background: "rgba(34, 197, 94, 0.2)" }}>
+                <Download className="w-5 h-5" style={{ color: "#22c55e" }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: "var(--foreground)" }}>Download Zip</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                  Open in VS Code or your local IDE with the branch already set up
+                </p>
+              </div>
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

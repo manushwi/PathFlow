@@ -18,7 +18,7 @@ export default function WorkspaceExplorePage() {
     refreshInterval: 3000,
     revalidateOnFocus: false,
   });
-  const { data: files } = useSWR(`/files/${workspaceId}`, () => api.files.tree(workspaceId));
+  const { data: files, mutate: refreshFiles } = useSWR(`/files/${workspaceId}`, () => api.files.tree(workspaceId));
 
   if (isLoading) {
     return (
@@ -27,6 +27,24 @@ export default function WorkspaceExplorePage() {
       </div>
     );
   }
+
+  const handleCreate = async (path: string, type: "file" | "folder") => {
+    try {
+      await api.files.create(workspaceId, path, type);
+      refreshFiles();
+    } catch (e) {
+      console.error("Create failed", e);
+    }
+  };
+
+  const handleDelete = async (path: string) => {
+    try {
+      await api.files.delete(workspaceId, path);
+      refreshFiles();
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
+  };
 
   const isReady = ws?.status === "ready";
   const progressMap: Record<string, number> = {
@@ -72,6 +90,8 @@ export default function WorkspaceExplorePage() {
             <FileTree
               tree={files?.tree || {}}
               onFileSelect={() => {}}
+              onCreate={handleCreate}
+              onDelete={handleDelete}
             />
           </aside>
 

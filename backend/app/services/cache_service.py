@@ -34,6 +34,16 @@ async def cache_del(key: str) -> None:
         await _redis_del(key)
 
 
+async def cache_del_pattern(pattern: str) -> None:
+    if settings.upstash_redis_rest_url and settings.upstash_redis_rest_token:
+        try:
+            await _upstash_del(pattern)
+        except Exception as e:
+            logger.warning(f"Upstash cache_del_pattern (fallback to single del) failed: {e}")
+    else:
+        await _redis_del_pattern(pattern)
+
+
 # ── Upstash REST backend ──────────────────────────────────────────────────────
 
 async def _upstash_set(key: str, value: str, ttl: int) -> None:
@@ -103,3 +113,17 @@ async def _redis_del(key: str) -> None:
         await _get_async_redis().delete(key)
     except Exception as e:
         logger.warning(f"Redis cache_del failed: {e}")
+
+
+async def _redis_del_pattern(pattern: str) -> None:
+    try:
+        r = _get_async_redis()
+        cursor = 0
+        while True:
+            cursor, keys = await r.scan(cursor=cursor, match=pattern, count=1000)
+            if keys:
+                await r.delete(*keys)
+            if cursor == 0:
+                break
+    except Exception as e:
+        logger.warning(f"Redis cache_del_pattern failed: {e}")

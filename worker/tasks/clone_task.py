@@ -15,18 +15,20 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
         if os.path.exists(repo_path):
             shutil.rmtree(repo_path)
         try:
-            repo = git.Repo.clone_from(repo_url, repo_path, branch=branch, depth=1)
+            repo = git.Repo.clone_from(repo_url, repo_path, branch=branch)
             sha = repo.head.commit.hexsha
+            active_branch = branch
         except Exception:
             if os.path.exists(repo_path):
                 shutil.rmtree(repo_path)
             try:
-                repo = git.Repo.clone_from(repo_url, repo_path, depth=1)
+                repo = git.Repo.clone_from(repo_url, repo_path)
                 sha = repo.head.commit.hexsha
+                active_branch = repo.active_branch.name
             except Exception as e:
                 self.update_state(state="FAILURE", meta={"error": str(e)})
                 raise
-        _update_workspace_status(workspace_id, "analyzing", sha)
+        _update_workspace_status(workspace_id, "analyzing", sha, active_branch)
         return {"workspace_id": workspace_id, "repo_path": repo_path, "sha": sha}
     except Exception:
         from sqlalchemy import update
@@ -37,14 +39,17 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
             conn.commit()
         raise
 
-def _update_workspace_status(workspace_id: int, status: str, sha: str = None):
+def _update_workspace_status(workspace_id: int, status: str, sha: str = None, branch: str = None):
     from sqlalchemy import update
     from sqlalchemy.orm import sessionmaker
     from app.models.workspace import Workspace, RepoAnalysis
     engine = get_sync_engine()
     Session = sessionmaker(bind=engine)
     with Session() as session:
-        session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status=status))
+        update_values = {"status": status}
+        if branch:
+            update_values["branch"] = branch
+        session.execute(update(Workspace).where(Workspace.id == workspace_id).values(**update_values))
         if sha:
             existing = session.query(RepoAnalysis).filter_by(workspace_id=workspace_id).first()
             if not existing:

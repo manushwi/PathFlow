@@ -43,3 +43,18 @@ class TerminalExecRequest(BaseModel):
 
 class UpdateSkillRequest(BaseModel):
     skill_level: str = Field(..., pattern=r"^(beginner|intermediate|advanced)$")
+
+class ManualBranchRequest(BaseModel):
+    workspace_id: int
+    issue_number: int
+
+class SolveAndPRRequest(BaseModel):
+    workspace_id: int
+    issue_number: int
+
+class CreateFileRequest(BaseModel):
+    path: str = Field(..., min_length=1, description="File or folder path relative to repo root")
+    type: str = Field(default="file", pattern=r"^(file|folder)$")
+
+class DeleteFileRequest(BaseModel):
+    path: str = Field(..., min_length=1)

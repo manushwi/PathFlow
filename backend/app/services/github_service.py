@@ -13,7 +13,7 @@ async def exchange_code_for_token(code: str) -> str:
                 "code": code,
                 "redirect_uri": settings.github_redirect_uri,
             },
-            headers={"Accept": "application/json"},
+            headers={"Accept": "application/json", "User-Agent": "PatchFlow-Browser"},
         )
         data = r.json()
         return data.get("access_token")
@@ -22,7 +22,7 @@ async def get_github_user(token: str) -> dict:
     async with httpx.AsyncClient() as client:
         r = await client.get(
             f"{GITHUB_API}/user",
-            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
         )
         return r.json()
 
@@ -30,7 +30,7 @@ async def get_user_repos(token: str) -> list:
     async with httpx.AsyncClient() as client:
         r = await client.get(
             f"{GITHUB_API}/user/repos?per_page=100&sort=updated",
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token}", "User-Agent": "PatchFlow-Browser"},
         )
         return r.json()
 
@@ -56,7 +56,28 @@ async def get_repo_issues(token: str, owner: str, repo: str, state: str = "open"
     async with httpx.AsyncClient() as client:
         r = await client.get(
             f"{GITHUB_API}/repos/{owner}/{repo}/issues?state={state}&per_page=100",
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token}", "User-Agent": "PatchFlow-Browser"},
+        )
+        return r.json()
+
+async def check_collab(token: str, owner: str, repo: str, username: str) -> bool:
+    if owner == username:
+        return True
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/collaborators/{username}/permission",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
+        )
+        if r.status_code != 200:
+            return False
+        data = r.json()
+        return data.get("permission") in ("write", "admin")
+
+async def fork_repo(token: str, owner: str, repo: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            f"{GITHUB_API}/repos/{owner}/{repo}/forks",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
         )
         return r.json()
 
@@ -66,6 +87,6 @@ async def create_pull_request(token: str, owner: str, repo: str, title: str,
         r = await client.post(
             f"{GITHUB_API}/repos/{owner}/{repo}/pulls",
             json={"title": title, "body": body, "head": head, "base": base},
-            headers={"Authorization": f"Bearer {token}"},
+            headers={"Authorization": f"Bearer {token}", "User-Agent": "PatchFlow-Browser"},
         )
         return r.json()

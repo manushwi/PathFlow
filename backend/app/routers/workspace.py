@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.workspace import Workspace, RepoAnalysis
+from app.models.workspace import Workspace, RepoAnalysis, WorkspaceFile, ChatMessage
+from app.models.issue import Issue
 from app.models.user import User
 from app.schemas.requests import CreateWorkspaceRequest
 import os, re, sys
@@ -98,6 +99,11 @@ async def reanalyze_workspace(workspace_id: int, request: Request, db: AsyncSess
     ws.status = "pending"
     await db.commit()
     try:
+        from app.services.cache_service import cache_del
+        await cache_del(f"issues:{workspace_id}")
+    except Exception:
+        pass
+    try:
         from app.core.celery_client import send_pipeline_task
         send_pipeline_task(ws.id, ws.repo_url, ws.branch or "main")
     except Exception as e:
@@ -111,8 +117,12 @@ async def reanalyze_workspace(workspace_id: int, request: Request, db: AsyncSess
 @router.delete("/{workspace_id}")
 async def delete_workspace(workspace_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     user: User = await get_current_user(request, db)
-    result = await db.execute(select(Workspace).where(Workspace.id == workspace_id,
-                                                        Workspace.user_id == user.id))
+    result = await db.execute(
+        select(Workspace)
+        .options(selectinload(Workspace.analysis), selectinload(Workspace.messages),
+                 selectinload(Workspace.files), selectinload(Workspace.issues))
+        .where(Workspace.id == workspace_id, Workspace.user_id == user.id)
+    )
     ws = result.scalar_one_or_none()
     if not ws:
         raise HTTPException(404)
@@ -129,6 +139,22 @@ async def delete_workspace(workspace_id: int, request: Request, db: AsyncSession
     repo_path = os.path.join(REPOS_BASE_PATH, str(workspace_id))
     if os.path.exists(repo_path):
         shutil.rmtree(repo_path, ignore_errors=True)
+    # Clear cached data
+    try:
+        from app.services.cache_service import cache_del, cache_del_pattern
+        await cache_del(f"issues:{workspace_id}")
+        await cache_del_pattern(f"explain:{workspace_id}:*")
+    except Exception:
+        pass
+    # Delete child records explicitly (FKs are NOT NULL, no cascade)
+    if ws.analysis:
+        await db.delete(ws.analysis)
+    for m in ws.messages:
+        await db.delete(m)
+    for f in ws.files:
+        await db.delete(f)
+    for issue in ws.issues:
+        await db.delete(issue)
     await db.delete(ws)
     await db.commit()
     return {"ok": True}

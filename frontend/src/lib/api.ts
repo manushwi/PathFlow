@@ -46,11 +46,20 @@ export const api = {
     save: (workspaceId: number, path: string, content: string) =>
       apiFetch(`/api/workspace/${workspaceId}/files/content`, {
         method: "POST", body: JSON.stringify({ path, content }) }),
+    create: (workspaceId: number, path: string, type: "file" | "folder") =>
+      apiFetch(`/api/workspace/${workspaceId}/files/create`, {
+        method: "POST", body: JSON.stringify({ path, type }) }),
+    delete: (workspaceId: number, path: string) =>
+      apiFetch(`/api/workspace/${workspaceId}/files/delete`, {
+        method: "DELETE", body: JSON.stringify({ path }) }),
   },
   ai: {
     chatHistory: (workspaceId: number) => apiFetch(`/api/ai/chat/${workspaceId}/history`),
     solveIssue: (workspaceId: number, issueNumber: number) =>
       apiFetch("/api/ai/solve-issue", { method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
+    solveAndPR: (workspaceId: number, issueNumber: number) =>
+      apiFetch("/api/ai/solve-and-pr", { method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
   },
   terminal: {
@@ -72,5 +81,12 @@ export const api = {
     createBranch: (workspaceId: number, branchName: string) =>
       apiFetch("/api/git/branch", { method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, name: branchName }) }),
+    manualBranch: (workspaceId: number, issueNumber: number) =>
+      apiFetch("/api/git/manual-branch", { method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
+    downloadZip: (workspaceId: number) => {
+      const url = `${BASE}/api/git/zip/${workspaceId}`;
+      return fetch(url, { credentials: "include" });
+    },
   },
 };

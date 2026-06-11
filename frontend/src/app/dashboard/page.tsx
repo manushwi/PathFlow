@@ -37,6 +37,7 @@ import {
   ArrowRight,
   Loader2,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import useSWR from "swr";
@@ -51,6 +52,8 @@ export default function Dashboard() {
   const [repoUrl, setRepoUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
 
   const { data: workspaces, mutate: refreshWorkspaces } = useSWR(
     isAuthenticated ? "/workspace" : null,
@@ -61,6 +64,20 @@ export default function Dashboard() {
     isAuthenticated ? "/activity" : null,
     () => apiFetch("/api/activity"),
   );
+
+  const handleDelete = async (ws: any) => {
+    setDeleting(ws.id);
+    try {
+      await api.workspace.delete(ws.id);
+      refreshWorkspaces();
+      toast.success("Workspace deleted");
+    } catch (e: any) {
+      toast.error("Failed to delete workspace", { description: e.message });
+    } finally {
+      setDeleting(null);
+      setDeleteConfirm(null);
+    }
+  };
 
   const handleCreate = async () => {
     if (!repoUrl.trim()) return;
@@ -228,7 +245,22 @@ export default function Dashboard() {
                             ? new Date(ws.last_active).toLocaleDateString()
                             : "Just now"}
                         </span>
-                        <ExternalLink className="h-4 w-4 text-[#c2c6d6]/60" />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm(ws);
+                            }}
+                            className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/20"
+                          >
+                            {deleting === ws.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-red-400" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-red-400/60 hover:text-red-400" />
+                            )}
+                          </button>
+                          <ExternalLink className="h-4 w-4 text-[#c2c6d6]/60" />
+                        </div>
                       </div>
                     </GlassCard>
                   ))}
@@ -361,6 +393,40 @@ export default function Dashboard() {
       </Dialog>
 
       <SkillDialog />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent className="w-full max-w-md border border-white/10 bg-[#14141b] text-[#e1e2ec] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-[#e1e2ec]">
+              Delete Workspace
+            </DialogTitle>
+            <DialogDescription className="text-sm text-[#c2c6d6]">
+              Are you sure you want to delete{" "}
+              <span className="font-mono text-[#adc6ff]">
+                {deleteConfirm?.repo_owner}/{deleteConfirm?.repo_name}
+              </span>
+              ? This will permanently remove the workspace, cached explanations, and cloned repository.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 pt-2">
+            <DialogClose className="rounded-lg border border-white/10 bg-transparent px-4 py-2 text-sm text-[#c2c6d6] transition-colors hover:bg-white/5">
+              Cancel
+            </DialogClose>
+            <Button
+              onClick={() => handleDelete(deleteConfirm)}
+              disabled={deleting === deleteConfirm?.id}
+              className="bg-red-500 text-white hover:bg-red-600"
+            >
+              {deleting === deleteConfirm?.id ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

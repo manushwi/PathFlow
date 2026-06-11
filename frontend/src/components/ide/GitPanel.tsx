@@ -12,9 +12,11 @@ import { Input } from "@/components/ui/input";
 interface GitPanelProps {
   workspaceId: number;
   activeIssueNumber?: number;
+  onSaveFile?: () => Promise<void>;
+  currentBranch?: string | null;
 }
 
-export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
+export function GitPanel({ workspaceId, activeIssueNumber, onSaveFile, currentBranch }: GitPanelProps) {
   const { data, mutate } = useSWR(`/diff/${workspaceId}`, () => api.git.diff(workspaceId));
   const [commitMsg, setCommitMsg] = useState("");
   const [committing, setCommitting] = useState(false);
@@ -24,8 +26,13 @@ export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
 
   const handleCommit = async () => {
     if (!commitMsg.trim()) return;
+    if (!currentBranch) {
+      toast.error("Branch required", { description: "Create a branch before making changes." });
+      return;
+    }
     setCommitting(true);
     try {
+      await onSaveFile?.();
       await api.git.commit(workspaceId, commitMsg);
       setCommitMsg("");
       mutate();
@@ -37,6 +44,11 @@ export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
   };
 
   const handleGeneratePR = async () => {
+    if (!currentBranch) {
+      toast.error("Branch required", { description: "Create a branch before making changes." });
+      return;
+    }
+    await onSaveFile?.();
     try {
       const result = await api.git.generatePR(workspaceId, 0, data?.diff || "");
       setPrData(result);
@@ -47,6 +59,11 @@ export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
   };
 
   const handleGeneratePRWithIssue = async (issueNumber: number) => {
+    if (!currentBranch) {
+      toast.error("Branch required", { description: "Create a branch before making changes." });
+      return;
+    }
+    await onSaveFile?.();
     try {
       const result = await api.git.generatePR(workspaceId, issueNumber, data?.diff || "");
       setPrData(result);
@@ -68,6 +85,12 @@ export function GitPanel({ workspaceId, activeIssueNumber }: GitPanelProps) {
   };
 
   const handleSubmitPR = async () => {
+    if (!currentBranch) {
+      toast.error("Branch required", { description: "Create a branch before making changes." });
+      setPrDialog(false);
+      return;
+    }
+    await onSaveFile?.();
     try {
       const result = await api.git.createPR(workspaceId, prData.title, prData.body);
       toast.success("PR created!", { description: result.pr_url });
