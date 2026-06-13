@@ -1,5 +1,5 @@
 from celery import app
-from celery import chain, shared_task
+from celery import chain, chord, group, shared_task
 from tasks.clone_task import clone_repo
 from tasks.parse_task import parse_repo
 from tasks.embed_task import embed_repo
@@ -40,8 +40,9 @@ def run_analysis_pipeline(workspace_id: int, repo_url: str, branch: str = "main"
     pipeline = chain(
         clone_repo.s(workspace_id, repo_url, branch),
         parse_repo.s(),
-        embed_repo.s(),
-        generate_docs.s(),
-        build_graph.s(),
+        chord(
+            group(embed_repo.s(), generate_docs.s()),
+            build_graph.s(),
+        ),
     ).on_error(error_handler)
     return pipeline.apply_async()

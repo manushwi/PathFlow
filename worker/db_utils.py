@@ -2,7 +2,12 @@ from urllib.parse import urlparse, urlunparse
 from sqlalchemy import create_engine
 from app.core.config import settings
 
+_engine = None
+
 def get_sync_engine():
+    global _engine
+    if _engine is not None:
+        return _engine
     url = settings.database_url
     parsed = urlparse(url)
     query = parsed.query
@@ -13,4 +18,5 @@ def get_sync_engine():
         )
         url = urlunparse(parsed._replace(query=clean_query))
     url = url.replace("postgresql://", "postgresql+psycopg2://")
-    return create_engine(url)
+    _engine = create_engine(url, pool_pre_ping=True)
+    return _engine

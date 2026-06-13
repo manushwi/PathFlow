@@ -4,7 +4,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.graph")
-def build_graph(self, prev_result: dict):
+def build_graph(self, results):
+    # Chord passes a list of results (embed_result, docs_result); chain passes a single dict
+    if isinstance(results, list):
+        prev_result = {}
+        for r in results:
+            if isinstance(r, dict):
+                prev_result.update(r)
+    else:
+        prev_result = results
     try:
         workspace_id = prev_result["workspace_id"]
         files = prev_result.get("all_files", prev_result.get("files", []))
@@ -85,6 +93,10 @@ def build_graph(self, prev_result: dict):
                 analysis.graph_json = graph_data
             session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="ready"))
             session.commit()
+
+        import tasks.issues_task
+        from tasks.issues_task import classify_issues
+        classify_issues.delay(workspace_id)
 
         return {"workspace_id": workspace_id, "status": "ready"}
     except Exception:

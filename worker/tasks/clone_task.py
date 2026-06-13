@@ -15,19 +15,27 @@ def clone_repo(self, workspace_id: int, repo_url: str, branch: str = "main"):
         if os.path.exists(repo_path):
             shutil.rmtree(repo_path)
         try:
-            repo = git.Repo.clone_from(repo_url, repo_path, branch=branch)
+            repo = git.Repo.clone_from(repo_url, repo_path, branch=branch,
+                                       depth=1, single_branch=True)
             sha = repo.head.commit.hexsha
             active_branch = branch
         except Exception:
             if os.path.exists(repo_path):
                 shutil.rmtree(repo_path)
             try:
-                repo = git.Repo.clone_from(repo_url, repo_path)
+                repo = git.Repo.clone_from(repo_url, repo_path, branch=branch)
                 sha = repo.head.commit.hexsha
-                active_branch = repo.active_branch.name
-            except Exception as e:
-                self.update_state(state="FAILURE", meta={"error": str(e)})
-                raise
+                active_branch = branch
+            except Exception:
+                if os.path.exists(repo_path):
+                    shutil.rmtree(repo_path)
+                try:
+                    repo = git.Repo.clone_from(repo_url, repo_path)
+                    sha = repo.head.commit.hexsha
+                    active_branch = repo.active_branch.name
+                except Exception as e:
+                    self.update_state(state="FAILURE", meta={"error": str(e)})
+                    raise
         _update_workspace_status(workspace_id, "analyzing", sha, active_branch)
         return {"workspace_id": workspace_id, "repo_path": repo_path, "sha": sha}
     except Exception:

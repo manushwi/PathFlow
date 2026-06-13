@@ -40,27 +40,21 @@ def embed_repo(self, prev_result: dict):
             except Exception:
                 continue
         async def do_embed():
-            from app.services.ai_service import get_embedding
+            from app.services.ai_service import get_embeddings
             from app.services.vector_service import ensure_collection, upsert_chunks, delete_workspace_vectors
             await ensure_collection()
             await delete_workspace_vectors(workspace_id)
-            batch_size = 10
-            total_embedded = 0
-            for i in range(0, len(all_chunks), batch_size):
-                batch = all_chunks[i:i+batch_size]
-                embeddings = []
-                for chunk in batch:
-                    try:
-                        emb = await get_embedding(chunk["content"][:2000])
-                        embeddings.append(emb)
-                    except Exception:
-                        continue
-                if embeddings and len(embeddings) == len(batch):
-                    try:
-                        await upsert_chunks(workspace_id, batch, embeddings)
-                        total_embedded += len(batch)
-                    except Exception:
-                        pass
+            batch_size = 50
+            sem = asyncio.Semaphore(5)
+            async def process_batch(batch):
+                async with sem:
+                    texts = [c["content"][:2000] for c in batch]
+                    embeddings = await get_embeddings(texts)
+                    await upsert_chunks(workspace_id, batch, embeddings)
+                    return len(batch)
+            batches = [all_chunks[i:i+batch_size] for i in range(0, len(all_chunks), batch_size)]
+            results = await asyncio.gather(*[process_batch(b) for b in batches], return_exceptions=True)
+            total_embedded = sum(r for r in results if isinstance(r, int))
             return total_embedded
         try:
             total = asyncio.run(do_embed())

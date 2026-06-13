@@ -14,6 +14,16 @@ async def get_embedding(text: str) -> list[float]:
         )
         return r.json()["data"][0]["embedding"]
 
+async def get_embeddings(texts: list[str]) -> list[list[float]]:
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(
+            f"{OPENROUTER_BASE}/embeddings",
+            headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
+            json={"model": settings.openrouter_embed_model, "input": texts},
+        )
+        data = r.json()["data"]
+        return [d["embedding"] for d in sorted(data, key=lambda x: x["index"])]
+
 async def chat_complete(messages: list[dict], system: str = "") -> str:
     msgs = ([{"role": "system", "content": system}] if system else []) + messages
     async with httpx.AsyncClient(timeout=120) as client:

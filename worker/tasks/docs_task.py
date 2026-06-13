@@ -35,18 +35,17 @@ def generate_docs(self, prev_result: dict):
             prompt = build_repo_docs_prompt(tree_str, readme, ", ".join(tech_stack))
             return await chat_complete_json([{"role": "user", "content": prompt}], SYSTEM_REPO_DOCS)
         docs = asyncio.run(do_docs())
-        def save_docs(docs_data):
-            from sqlalchemy.orm import sessionmaker
-            from app.models.workspace import RepoAnalysis
-            engine = get_sync_engine()
-            Session = sessionmaker(bind=engine)
-            with Session() as session:
-                analysis = session.query(RepoAnalysis).filter_by(workspace_id=workspace_id).first()
-                if analysis:
-                    analysis.docs_json = docs_data
-                session.commit()
-        save_docs(docs)
-        _update_status(workspace_id, "building_graph")
+        engine = get_sync_engine()
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy import update
+        from app.models.workspace import RepoAnalysis, Workspace
+        Session = sessionmaker(bind=engine)
+        with Session() as session:
+            analysis = session.query(RepoAnalysis).filter_by(workspace_id=workspace_id).first()
+            if analysis:
+                analysis.docs_json = docs
+            session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="building_graph"))
+            session.commit()
         return {**prev_result, "docs": docs}
     except Exception:
         from sqlalchemy import update
@@ -56,13 +55,3 @@ def generate_docs(self, prev_result: dict):
             conn.execute(update(Workspace).where(Workspace.id == workspace_id).values(status="error"))
             conn.commit()
         raise
-
-def _update_status(workspace_id, status):
-    from sqlalchemy import update
-    from sqlalchemy.orm import sessionmaker
-    from app.models.workspace import Workspace
-    engine = get_sync_engine()
-    Session = sessionmaker(bind=engine)
-    with Session() as session:
-        session.execute(update(Workspace).where(Workspace.id == workspace_id).values(status=status))
-        session.commit()
