@@ -32,6 +32,7 @@ export default function WorkspacePage() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
   const [rightPanel, setRightPanel] = useState<"ai" | "git">("ai");
+  const [audience, setAudience] = useState<"beginner" | "professional">("beginner");
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { data: ws, isLoading } = useSWR(isAuthenticated ? `/workspace/${workspaceId}` : null, () => api.workspace.get(workspaceId), {
     refreshInterval: (data) => {
@@ -289,55 +290,119 @@ export default function WorkspacePage() {
                       <TabsTrigger value="docs">Documentation</TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview" className="mt-6 space-y-6">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                          <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Framework</p>
-                          <p className="font-semibold" style={{ color: "var(--foreground)" }}>
-                            {ws?.analysis?.docs_json?.framework || "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                          <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Languages</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(ws?.analysis?.docs_json?.languages || []).map((l: string) => (
-                              <Badge key={l} variant="outline" className="text-xs">{l}</Badge>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                          <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Architecture</p>
-                          <p className="font-semibold" style={{ color: "var(--foreground)" }}>
-                            {ws?.analysis?.docs_json?.architecture_type || "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                          <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Tech Stack</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(ws?.analysis?.tech_stack?.detected || []).map((t: string) => (
-                              <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
-                            ))}
-                          </div>
-                        </div>
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          onClick={() => setAudience("beginner")}
+                          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                          style={{
+                            background: audience === "beginner" ? "var(--accent)" : "var(--sidebar)",
+                            color: audience === "beginner" ? "white" : "var(--muted-foreground)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          Beginner
+                        </button>
+                        <button
+                          onClick={() => setAudience("professional")}
+                          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                          style={{
+                            background: audience === "professional" ? "var(--accent)" : "var(--sidebar)",
+                            color: audience === "professional" ? "white" : "var(--muted-foreground)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          Professional
+                        </button>
                       </div>
-                      <div className="rounded-lg p-6" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                        <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>About</h3>
-                        <p style={{ color: "var(--muted-foreground)" }}>
-                          {ws?.analysis?.docs_json?.overview || "No overview available."}
-                        </p>
-                        {ws?.analysis?.docs_json?.key_concepts && (
-                          <div className="mt-4">
-                            <p className="text-sm font-medium mb-2" style={{ color: "var(--muted-foreground)" }}>Key Concepts</p>
-                            <ul className="list-disc list-inside space-y-1">
-                              {ws.analysis.docs_json.key_concepts.map((c: string, i: number) => (
-                                <li key={i} className="text-sm" style={{ color: "var(--muted-foreground)" }}>{c}</li>
-                              ))}
-                            </ul>
+
+                      {audience === "beginner" ? (
+                        <>
+                          <div className="rounded-lg p-6" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                            <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>Overview</h3>
+                            <p style={{ color: "var(--muted-foreground)" }}>
+                              {ws?.analysis?.docs_json?.overview || "No overview available."}
+                            </p>
                           </div>
-                        )}
-                      </div>
+                          {ws?.analysis?.docs_json?.beginner_explanation && (
+                            <div className="rounded-lg p-6" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>Explanation for Beginners</h3>
+                              <p style={{ color: "var(--muted-foreground)" }}>
+                                {ws.analysis.docs_json.beginner_explanation}
+                              </p>
+                            </div>
+                          )}
+                          {ws?.analysis?.docs_json?.key_concepts && ws.analysis.docs_json.key_concepts.length > 0 && (
+                            <div className="rounded-lg p-6" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <p className="text-sm font-medium mb-2" style={{ color: "var(--muted-foreground)" }}>Key Concepts</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                {ws.analysis.docs_json.key_concepts.map((c: string, i: number) => (
+                                  <li key={i} className="text-sm" style={{ color: "var(--muted-foreground)" }}>{c}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {ws?.analysis?.docs_json?.professional_summary && (
+                            <div className="rounded-lg p-6" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>Technical Summary</h3>
+                              <p style={{ color: "var(--muted-foreground)" }}>
+                                {ws.analysis.docs_json.professional_summary}
+                              </p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Framework</p>
+                              <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                                {ws?.analysis?.docs_json?.framework || "N/A"}
+                              </p>
+                            </div>
+                            <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Languages</p>
+                              <div className="flex flex-wrap gap-1">
+                                {(ws?.analysis?.docs_json?.languages || []).map((l: string) => (
+                                  <Badge key={l} variant="outline" className="text-xs">{l}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Architecture</p>
+                              <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                                {ws?.analysis?.docs_json?.architecture_type || "N/A"}
+                              </p>
+                            </div>
+                            <div className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                              <p className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>Tech Stack</p>
+                              <div className="flex flex-wrap gap-1">
+                                {(ws?.analysis?.tech_stack?.detected || []).map((t: string) => (
+                                  <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          {["api_architecture", "database_architecture", "deployment"].map((key) => {
+                            const val = ws?.analysis?.docs_json?.[key];
+                            if (!val) return null;
+                            return (
+                              <div key={key} className="rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                                <h3 className="font-semibold mb-2 capitalize" style={{ color: "var(--foreground)" }}>
+                                  {key.replace(/_/g, " ")}
+                                </h3>
+                                <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>{val}</p>
+                              </div>
+                            );
+                          })}
+                        </>
+                      )}
                     </TabsContent>
                     <TabsContent value="architecture" className="mt-6">
-                      <ArchitectureDiagram graph={ws?.analysis?.graph_json} />
+                      <ArchitectureDiagram
+                        graph={ws?.analysis?.graph_json}
+                        docs={ws?.analysis?.docs_json}
+                        onFileSelect={handleFileSelect}
+                      />
                       {ws?.analysis?.docs_json?.auth_flow && (
                         <div className="mt-4 rounded-lg p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                           <h3 className="font-semibold mb-2" style={{ color: "var(--foreground)" }}>Auth Flow</h3>
@@ -346,7 +411,7 @@ export default function WorkspacePage() {
                       )}
                     </TabsContent>
                     <TabsContent value="docs" className="mt-6 space-y-4">
-                      {["main_business_logic", "api_architecture", "database_architecture", "deployment"].map((key) => {
+                      {["api_architecture", "database_architecture", "deployment"].map((key) => {
                         const val = ws?.analysis?.docs_json?.[key];
                         if (!val) return null;
                         return (

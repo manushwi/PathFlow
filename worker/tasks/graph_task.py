@@ -22,62 +22,83 @@ def build_graph(self, results):
 
         nodes = []
         edges = []
+        modules = docs.get("modules", [])
 
-        dirs = {}
-        for f in files:
-            path = f["path"] if isinstance(f, dict) else f
-            parts = path.split("/")
-            top_dir = parts[0] if len(parts) > 1 else "root"
-            if top_dir not in dirs:
-                dirs[top_dir] = []
-            dirs[top_dir].append(path)
+        if modules:
+            for i, mod in enumerate(modules):
+                file_count = len(mod.get("key_files", []))
+                nodes.append({
+                    "id": mod["name"],
+                    "type": "module",
+                    "data": {
+                        "label": mod["name"],
+                        "purpose": mod.get("purpose", ""),
+                        "path": mod.get("path", ""),
+                        "files": file_count,
+                        "key_files": mod.get("key_files", []),
+                    },
+                    "position": {"x": (i % 4) * 280, "y": (i // 4) * 180},
+                })
+            for mod in modules:
+                for dep in mod.get("depends_on", []):
+                    edges.append({
+                        "id": f"{mod['name']}-{dep}",
+                        "source": mod["name"],
+                        "target": dep,
+                        "type": "smoothstep",
+                        "animated": True,
+                    })
+        else:
+            dirs = {}
+            for f in files:
+                path = f["path"] if isinstance(f, dict) else f
+                parts = path.split("/")
+                top_dir = parts[0] if len(parts) > 1 else "root"
+                if top_dir not in dirs:
+                    dirs[top_dir] = []
+                dirs[top_dir].append(path)
 
-        x_pos = 50
-        node_id_map = {}
-        for i, (dir_name, dir_files) in enumerate(sorted(dirs.items())):
-            nid = str(i)
-            label = dir_name.replace("_", " ").title()
-            node_id_map[dir_name] = nid
-            style = {
-                "background": "#1e1e2e",
-                "border": "1px solid #6366f1",
-                "borderRadius": "8px",
-                "color": "#e2e8f0",
-                "padding": "8px 12px",
-            }
-            if dir_name == "root":
-                style["border"] = "1px solid #10b981"
-            nodes.append({
-                "id": nid,
-                "type": "default",
-                "data": {"label": label, "nodeType": "module", "files": len(dir_files)},
-                "position": {"x": x_pos, "y": 200},
-                "style": style,
-            })
-            x_pos += 250
+            for i, (dir_name, dir_files) in enumerate(sorted(dirs.items())):
+                label = dir_name.replace("_", " ").title()
+                nodes.append({
+                    "id": str(i),
+                    "type": "module",
+                    "data": {
+                        "label": label,
+                        "purpose": "",
+                        "path": dir_name,
+                        "files": len(dir_files),
+                        "key_files": [],
+                    },
+                    "position": {"x": (i % 4) * 280, "y": (i // 4) * 180},
+                })
 
-        dir_names = sorted(dirs.keys())
-        for i in range(len(dir_names) - 1):
-            edges.append({
-                "id": f"e{i}-{i+1}",
-                "source": str(i),
-                "target": str(i + 1),
-                "label": "depends",
-                "style": {"stroke": "#6366f1"},
-                "markerEnd": {"type": "ArrowClosed"},
-            })
+            dir_names = sorted(dirs.keys())
+            for i in range(len(dir_names) - 1):
+                edges.append({
+                    "id": f"e{i}-{i+1}",
+                    "source": str(i),
+                    "target": str(i + 1),
+                    "type": "smoothstep",
+                    "animated": True,
+                })
 
         if tech_stack:
             techs = tech_stack if isinstance(tech_stack, list) else tech_stack.get("detected", [])
             if techs:
-                tech_id = str(len(dir_names))
+                tech_id = "tech-stack"
                 nodes.append({
                     "id": tech_id,
-                    "type": "default",
-                    "data": {"label": "Tech Stack", "tech": techs[:5]},
-                    "position": {"x": x_pos + 100, "y": 50},
-                    "style": {"background": "#1e1e2e", "border": "1px solid #f59e0b",
-                              "borderRadius": "8px", "color": "#e2e8f0", "padding": "8px 12px"},
+                    "type": "module",
+                    "data": {
+                        "label": "Tech Stack",
+                        "purpose": f"Uses: {', '.join(techs[:5])}",
+                        "path": "",
+                        "files": 0,
+                        "key_files": [],
+                        "is_tech_node": True,
+                    },
+                    "position": {"x": 50, "y": (max(len(modules) if modules else len(dirs), 1) + 1) * 180},
                 })
 
         graph_data = {"nodes": nodes, "edges": edges}

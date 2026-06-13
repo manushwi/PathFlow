@@ -38,29 +38,52 @@ Return JSON:
 SYSTEM_CHAT_ASSISTANT = """You are PatchFlow AI — an expert coding assistant embedded in a developer IDE. You have context from the repository's codebase via RAG retrieval. Be concise, helpful, and accurate. When showing code, use markdown code blocks."""
 
 def build_repo_docs_prompt(file_tree: str, sample_files: str, stack_hints: str) -> str:
-    return f"""Analyze this repository and generate documentation.
+    return f"""Analyze this repository and generate documentation for both beginners and experienced developers.
 
 Tech stack hints: {stack_hints}
-
 File tree:
 {file_tree}
-
 Key file samples:
 {sample_files}
 
 Return JSON with this exact structure:
 {{
-  "overview": "what this project does (2-3 sentences)",
+  "overview": "2-3 sentence plain-English summary of what this project does",
+  "beginner_explanation": "explain like to someone new to this stack - what is this, why does it exist, how does it work at a high level (4-6 sentences)",
+  "professional_summary": "concise technical summary: architecture pattern, key design decisions, notable tradeoffs (3-5 sentences)",
   "framework": "main framework",
-  "languages": ["list", "of", "languages"],
+  "languages": ["..."],
   "architecture_type": "monolith|microservices|serverless|library",
-  "main_business_logic": "description",
+  "modules": [
+    {{
+      "name": "auth",
+      "path": "src/auth",
+      "purpose": "what this module does",
+      "key_files": [
+        {{"path": "src/auth/login.ts", "role": "handles login endpoint and session creation"}}
+      ],
+      "depends_on": ["db", "config"]
+    }}
+  ],
+  "workflows": [
+    {{
+      "name": "User login flow",
+      "description": "step by step what happens",
+      "steps": [
+        {{"step": "User submits credentials", "file": "src/auth/login.ts"}},
+        {{"step": "Password verified against DB", "file": "src/db/users.ts"}},
+        {{"step": "Session token issued", "file": "src/auth/session.ts"}}
+      ]
+    }}
+  ],
+  "key_concepts": ["concept1", "concept2"],
   "auth_flow": "description or null",
   "api_architecture": "description or null",
   "database_architecture": "description or null",
-  "deployment": "description or null",
-  "key_concepts": ["concept1", "concept2"]
-}}"""
+  "deployment": "description or null"
+}}
+
+Identify 4-8 real modules based on the file tree (not generic top-level folders unless they're meaningful), and 2-4 important workflows (e.g. auth, data fetching, main user action) tracing through actual files you can see in the tree/samples."""
 
 def build_issue_classifier_prompt(issues: list, repo_docs: dict) -> str:
     import json
