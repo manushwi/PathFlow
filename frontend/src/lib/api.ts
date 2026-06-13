@@ -61,6 +61,9 @@ export const api = {
     solveAndPR: (workspaceId: number, issueNumber: number) =>
       apiFetch("/api/ai/solve-and-pr", { method: "POST",
         body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
+    updatePR: (workspaceId: number, prNumber: number) =>
+      apiFetch("/api/ai/update-pr", { method: "POST",
+        body: JSON.stringify({ workspace_id: workspaceId, pr_number: prNumber }) }),
   },
   terminal: {
     exec: (workspaceId: number, command: string) =>

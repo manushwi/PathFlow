@@ -12,6 +12,8 @@ class Workspace(Base):
     repo_name: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(50), default="pending")
     branch: Mapped[str] = mapped_column(String(200), default="main")
+    fork_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    pr_number: Mapped[int | None]
     active_issue_number: Mapped[int | None]
     last_active: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

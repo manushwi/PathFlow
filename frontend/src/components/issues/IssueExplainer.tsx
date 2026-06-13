@@ -32,6 +32,10 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
   const [manualBranch, setManualBranch] = useState("");
   const [manualCreating, setManualCreating] = useState(false);
   const [manualDialog, setManualDialog] = useState(false);
+  const [updatingPR, setUpdatingPR] = useState(false);
+  const [updatingPRStep, setUpdatingPRStep] = useState("");
+  const [updateResult, setUpdateResult] = useState<any>(null);
+  const [updatePRInput, setUpdatePRInput] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -59,6 +63,41 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
       setSolvedOpen(true);
     } finally {
       setSolving(false);
+    }
+  };
+
+  const handleUpdatePR = async () => {
+    const prNum = solvedResult?.pr_number;
+    if (!prNum) return;
+    setUpdatingPR(true);
+    setUpdatingPRStep("Fetching review comments...");
+    try {
+      setUpdatingPRStep("Generating updated solution...");
+      const result = await api.ai.updatePR(workspaceId, prNum);
+      setUpdateResult(result);
+      setUpdatingPRStep("Done");
+    } catch (e: any) {
+      setUpdateResult({ error: e.message });
+    } finally {
+      setUpdatingPR(false);
+    }
+  };
+
+  const handleUpdatePRFromInput = async () => {
+    const prNum = parseInt(updatePRInput, 10);
+    if (!prNum) return;
+    setUpdatingPR(true);
+    setUpdatingPRStep("Fetching review comments...");
+    try {
+      setUpdatingPRStep("Generating updated solution...");
+      const result = await api.ai.updatePR(workspaceId, prNum);
+      setUpdateResult(result);
+      setUpdatePRInput("");
+      setUpdatingPRStep("Done");
+    } catch (e: any) {
+      setUpdateResult({ error: e.message });
+    } finally {
+      setUpdatingPR(false);
     }
   };
 
@@ -211,6 +250,39 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
                 >
                   <FileCode className="w-4 h-4 mr-1" /> Open in IDE
                 </Button>
+                <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
+                  <p className="text-xs font-medium mb-2" style={{ color: "var(--muted-foreground)" }}>
+                    Update Existing PR with Review Feedback
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="PR #"
+                      value={updatePRInput}
+                      onChange={(e) => setUpdatePRInput(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg text-sm"
+                      style={{ background: "var(--background)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                    />
+                    <Button
+                      onClick={handleUpdatePRFromInput}
+                      disabled={updatingPR || !updatePRInput}
+                      variant="outline"
+                      size="sm"
+                      style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                    >
+                      {updatingPR ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Update"
+                      )}
+                    </Button>
+                  </div>
+                  {updateResult && (
+                    <p className="text-xs mt-2" style={{ color: updateResult.error ? "rgb(239, 68, 68)" : "rgb(34, 197, 94)" }}>
+                      {updateResult.error || updateResult.message}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           ) : (
@@ -268,6 +340,26 @@ export function IssueExplainer({ workspaceId, issue, onClose }: IssueExplainerPr
                 >
                   <ExternalLink className="w-4 h-4" /> View Pull Request
                 </a>
+              )}
+              {solvedResult.pr_number && !updateResult && (
+                <Button
+                  onClick={handleUpdatePR}
+                  disabled={updatingPR}
+                  variant="outline"
+                  className="w-full"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                >
+                  {updatingPR ? (
+                    <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> {updatingPRStep}</>
+                  ) : (
+                    <><GitBranch className="w-4 h-4 mr-1" /> Update PR #{solvedResult.pr_number} with Feedback</>
+                  )}
+                </Button>
+              )}
+              {updateResult && (
+                <div className="p-3 rounded-lg text-sm" style={{ background: updateResult.error ? "rgba(239, 68, 68, 0.1)" : "rgba(34, 197, 94, 0.1)", color: updateResult.error ? "rgb(239, 68, 68)" : "rgb(34, 197, 94)" }}>
+                  {updateResult.error || updateResult.message}
+                </div>
               )}
             </div>
           ) : (

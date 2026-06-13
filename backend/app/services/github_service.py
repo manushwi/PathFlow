@@ -90,3 +90,35 @@ async def create_pull_request(token: str, owner: str, repo: str, title: str,
             headers={"Authorization": f"Bearer {token}", "User-Agent": "PatchFlow-Browser"},
         )
         return r.json()
+
+async def get_pr(token: str, owner: str, repo: str, pr_number: int) -> dict:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
+        )
+        return r.json()
+
+async def get_pr_reviews(token: str, owner: str, repo: str, pr_number: int) -> list:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}/comments",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
+        )
+        return r.json()
+
+async def get_pr_issue_comments(token: str, owner: str, repo: str, pr_number: int) -> list:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/issues/{pr_number}/comments",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
+        )
+        return r.json()
+
+async def get_pr_files(token: str, owner: str, repo: str, pr_number: int) -> list:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{pr_number}/files",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "User-Agent": "PatchFlow-Browser"},
+        )
+        return r.json()

@@ -52,6 +52,10 @@ class SolveAndPRRequest(BaseModel):
     workspace_id: int
     issue_number: int
 
+class UpdatePRRequest(BaseModel):
+    workspace_id: int
+    pr_number: int
+
 class CreateFileRequest(BaseModel):
     path: str = Field(..., min_length=1, description="File or folder path relative to repo root")
     type: str = Field(default="file", pattern=r"^(file|folder)$")
