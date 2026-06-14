@@ -15,6 +15,7 @@ dev-frontend:
 	cd frontend && npm run dev
 
 dev:
+	docker-compose up -d
 	$(MAKE) dev-backend &
 	$(MAKE) dev-worker &
 	$(MAKE) dev-frontend
@@ -22,3 +23,4 @@ dev:
 stop:
 	pkill -f uvicorn || true
 	pkill -f celery || true
+	docker-compose stop
