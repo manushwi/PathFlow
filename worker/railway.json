@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "pip install -r requirements.txt && echo '=== /app contents ===' && ls /app && echo '=== done ===' && PYTHONPATH=/app/backend celery -A celery_app worker --loglevel=info",
+    "startCommand": "pip install -r requirements.txt && ls -la /app && celery -A celery_app worker --loglevel=info",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
