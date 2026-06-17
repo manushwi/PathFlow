@@ -55,8 +55,8 @@ async def github_callback(code: str, db: AsyncSession = Depends(get_db)):
     await db.refresh(user)
     session_token = create_session_token(user.id)
     response = RedirectResponse(f"{settings.frontend_url}/dashboard")
-    response.set_cookie("session", session_token, httponly=True, samesite="lax",
-                        max_age=86400 * 30, secure=settings.environment == "production")
+    response.set_cookie("session", session_token, httponly=True, samesite="none",
+                        max_age=86400 * 30, secure=True)
     return response
 
 @router.get("/me")
