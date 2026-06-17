@@ -1,6 +1,5 @@
 from celery_app import app
-import os, sys, json
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
+import os, json
 from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.graph")

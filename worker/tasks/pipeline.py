@@ -1,4 +1,4 @@
-from celery import app
+from celery_app import app
 from celery import chain, chord, group, shared_task
 from tasks.clone_task import clone_repo
 from tasks.parse_task import parse_repo

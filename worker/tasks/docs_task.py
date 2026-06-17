@@ -1,7 +1,5 @@
 from celery_app import app
-import os, sys, asyncio, json
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+import os, asyncio, json
 from constants import REPOS_BASE_PATH
 from prompts import SYSTEM_REPO_DOCS, build_repo_docs_prompt
 from db_utils import get_sync_engine

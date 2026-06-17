@@ -1,7 +1,5 @@
 from celery_app import app
-import os, sys, asyncio
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+import os, asyncio
 from constants import REPOS_BASE_PATH, CHUNK_SIZE, CHUNK_OVERLAP
 from db_utils import get_sync_engine
 

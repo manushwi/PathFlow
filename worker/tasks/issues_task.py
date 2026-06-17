@@ -1,7 +1,5 @@
 from celery_app import app
-import asyncio, os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+import asyncio, os
 from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.issues")

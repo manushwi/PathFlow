@@ -1,7 +1,5 @@
 from celery_app import app
-import os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../shared'))
+import os
 from constants import REPOS_BASE_PATH
 from db_utils import get_sync_engine
 
