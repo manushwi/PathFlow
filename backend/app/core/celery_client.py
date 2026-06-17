@@ -6,7 +6,7 @@ _celery = None
 def _get_celery() -> Celery:
     global _celery
     if _celery is None:
-        _celery = Celery(broker=settings.celery_broker_url)
+        _celery = Celery(broker=settings.celery_broker_url, broker_use_ssl={"ssl_cert_reqs": "required"})
     return _celery
 
 def send_pipeline_task(workspace_id: int, repo_url: str, branch: str = "main"):
