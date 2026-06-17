@@ -1,6 +1,6 @@
 from celery_app import app
 import os
-from constants import REPOS_BASE_PATH
+from shared.constants import REPOS_BASE_PATH
 from db_utils import get_sync_engine
 
 SKIP_DIRS = {'.git', 'node_modules', '__pycache__', '.next', 'dist', 'build', '.venv', 'venv'}

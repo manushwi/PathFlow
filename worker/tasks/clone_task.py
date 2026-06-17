@@ -1,7 +1,7 @@
 from celery_app import app
 import os, shutil
 import git
-from constants import REPOS_BASE_PATH
+from shared.constants import REPOS_BASE_PATH
 from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.clone")

@@ -14,8 +14,8 @@ def classify_issues(self, workspace_id):
         from app.services.github_service import get_repo_issues
         from app.services.ai_service import chat_complete_json
         from app.services.cache_service import sync_cache_set
-        from prompts import SYSTEM_ISSUE_CLASSIFIER, build_issue_classifier_prompt
-        from constants import CACHE_TTL_ISSUES
+        from shared.prompts import SYSTEM_ISSUE_CLASSIFIER, build_issue_classifier_prompt
+        from shared.constants import CACHE_TTL_ISSUES
 
         self.update_state(state="PROGRESS", meta={"status": "classifying_issues", "progress": 95})
 

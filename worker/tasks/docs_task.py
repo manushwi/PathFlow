@@ -1,7 +1,7 @@
 from celery_app import app
 import os, asyncio, json
-from constants import REPOS_BASE_PATH
-from prompts import SYSTEM_REPO_DOCS, build_repo_docs_prompt
+from shared.constants import REPOS_BASE_PATH
+from shared.prompts import SYSTEM_REPO_DOCS, build_repo_docs_prompt
 from db_utils import get_sync_engine
 
 @app.task(bind=True, name="tasks.docs")

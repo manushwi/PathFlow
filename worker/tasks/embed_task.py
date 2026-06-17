@@ -1,6 +1,6 @@
 from celery_app import app
 import os, asyncio
-from constants import REPOS_BASE_PATH, CHUNK_SIZE, CHUNK_OVERLAP
+from shared.constants import REPOS_BASE_PATH, CHUNK_SIZE, CHUNK_OVERLAP
 from db_utils import get_sync_engine
 
 def chunk_file(content: str, file_path: str, max_chars: int = CHUNK_SIZE) -> list[dict]:
