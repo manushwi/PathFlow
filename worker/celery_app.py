@@ -8,4 +8,5 @@ app.conf.imports = (
     "tasks.embed_task",
     "tasks.docs_task",
     "tasks.graph_task",
+    "tasks.pipeline",
 )
