@@ -1,9 +1,19 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("session_token");
+}
+
 export async function apiFetch(path: string, options?: RequestInit) {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
   const res = await fetch(`${BASE}${path}`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...options?.headers },
+    headers: { ...headers, ...(options?.headers as Record<string, string>) },
     ...options,
   });
   if (!res.ok) {
@@ -89,7 +99,10 @@ export const api = {
         body: JSON.stringify({ workspace_id: workspaceId, issue_number: issueNumber }) }),
     downloadZip: (workspaceId: number) => {
       const url = `${BASE}/api/git/zip/${workspaceId}`;
-      return fetch(url, { credentials: "include" });
+      const headers: Record<string, string> = {};
+      const token = getToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(url, { credentials: "include", headers });
     },
   },
 };

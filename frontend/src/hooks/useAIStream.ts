@@ -6,10 +6,13 @@ export async function streamChat(
   onError?: (err: Error) => void
 ) {
   try {
+    const token = typeof window !== "undefined" ? localStorage.getItem("session_token") : null;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai/chat`, {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ workspace_id: workspaceId, message }),
     });
     if (!res.ok || !res.body) {

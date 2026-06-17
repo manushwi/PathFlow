@@ -6,7 +6,12 @@ from app.core.security import verify_session_token
 from app.models.user import User
 
 async def get_current_user(request: Request, db: AsyncSession = None) -> User:
-    token = request.cookies.get("session")
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    if not token:
+        token = request.cookies.get("session")
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     user_id = verify_session_token(token)
