@@ -2,6 +2,8 @@ import os
 
 broker_url = os.environ.get("CELERY_BROKER_URL") or os.environ.get("REDIS_URL")
 result_backend = os.environ.get("CELERY_RESULT_BACKEND") or os.environ.get("REDIS_URL")
+broker_use_ssl = {"ssl_cert_reqs": "CERT_REQUIRED"}
+redis_backend_use_ssl = {"ssl_cert_reqs": "CERT_REQUIRED"}
 task_default_queue = "default"
 task_default_exchange = "default"
 task_default_routing_key = "default"
