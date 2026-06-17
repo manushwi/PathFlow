@@ -1,7 +1,7 @@
-from app.core.config import settings
+import os
 
-broker_url = settings.celery_broker_url
-result_backend = settings.celery_result_backend
+broker_url = os.environ.get("CELERY_BROKER_URL") or os.environ.get("REDIS_URL")
+result_backend = os.environ.get("CELERY_RESULT_BACKEND") or os.environ.get("REDIS_URL")
 task_default_queue = "default"
 task_default_exchange = "default"
 task_default_routing_key = "default"
