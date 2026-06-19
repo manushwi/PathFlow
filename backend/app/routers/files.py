@@ -41,6 +41,7 @@ async def get_file_tree(workspace_id: int, request: Request, db: AsyncSession = 
     user: User = await get_current_user(request, db)
     result = await db.execute(
         select(Workspace)
+        .options(selectinload(Workspace.analysis))
         .where(Workspace.id == workspace_id, Workspace.user_id == user.id)
     )
     ws = result.scalar_one_or_none()
@@ -50,6 +51,8 @@ async def get_file_tree(workspace_id: int, request: Request, db: AsyncSession = 
     if os.path.isdir(repo_path):
         tree = build_file_tree(repo_path)
         return {"tree": tree}
+    if ws.analysis and ws.analysis.file_tree:
+        return {"tree": ws.analysis.file_tree}
     return {"tree": {}}
 
 @router.get("/content")

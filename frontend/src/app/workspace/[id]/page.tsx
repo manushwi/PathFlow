@@ -42,7 +42,8 @@ export default function WorkspacePage() {
     },
     revalidateOnFocus: false,
   });
-  const { data: files, mutate: refreshFiles } = useSWR(isAuthenticated ? `/files/${workspaceId}` : null, () => api.files.tree(workspaceId));
+  const isReady = ws?.status === "ready";
+  const { data: files, mutate: refreshFiles } = useSWR(isAuthenticated && isReady ? `/files/${workspaceId}` : null, () => api.files.tree(workspaceId));
 
   const handleFileSelect = useCallback(async (path: string) => {
     setActiveFile(path);
@@ -202,8 +203,6 @@ export default function WorkspacePage() {
       </div>
     );
   }
-
-  const isReady = ws?.status === "ready";
 
   const handleReanalyze = async () => {
     setReanalyzing(true);
