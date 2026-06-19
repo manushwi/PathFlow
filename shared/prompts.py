@@ -35,7 +35,7 @@ Return JSON:
   "commit_message": "descriptive conventional commit message explaining what was updated based on review feedback"
 }"""
 
-SYSTEM_CHAT_ASSISTANT = """You are PatchFlow AI — an expert coding assistant embedded in a developer IDE. You have context from the repository's codebase via RAG retrieval. Be concise, helpful, and accurate. When showing code, use markdown code blocks."""
+SYSTEM_CHAT_ASSISTANT = """You are PathFlow AI — an expert coding assistant embedded in a developer IDE. You have context from the repository's codebase via RAG retrieval. Be concise, helpful, and accurate. When showing code, use markdown code blocks."""
 
 def build_repo_docs_prompt(file_tree: str, sample_files: str, stack_hints: str) -> str:
     return f"""Analyze this repository and generate documentation for both beginners and experienced developers.

@@ -3,9 +3,9 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: patchflow
-      POSTGRES_PASSWORD: patchflow
-      POSTGRES_DB: patchflow
+      POSTGRES_USER: pathflow
+      POSTGRES_PASSWORD: pathflow
+      POSTGRES_DB: pathflow
     ports:
       - "5432:5432"
     volumes:

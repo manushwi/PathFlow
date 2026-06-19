@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import auth, workspace, issues, files, ai, git, terminal, activity
 
-app = FastAPI(title="PatchFlow API")
+app = FastAPI(title="PathFlow API")
 
 app.add_middleware(
     CORSMiddleware,

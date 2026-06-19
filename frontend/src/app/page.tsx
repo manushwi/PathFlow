@@ -24,7 +24,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#0a0a0a", color: "#e1e2ec" }}>
       <header className="flex h-14 items-center justify-between border-b border-white/10 bg-[#0a0a0a]/80 px-6 backdrop-blur-xl">
-        <span className="text-lg font-semibold tracking-tighter">PatchFlow</span>
+        <span className="text-lg font-semibold tracking-tighter">PathFlow</span>
         <div className="flex items-center gap-4">
           <a href="/dashboard" className="text-sm text-[#c2c6d6] transition-colors hover:text-[#e1e2ec]">Dashboard</a>
           <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/auth/github`}
@@ -78,7 +78,7 @@ export default function LandingPage() {
 
       <section className="border-t border-white/10 px-6 py-24 text-center">
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready to start contributing?</h2>
-        <p className="mt-4 text-lg text-[#c2c6d6]">Join developers who use PatchFlow to make their first open source contribution.</p>
+        <p className="mt-4 text-lg text-[#c2c6d6]">Join developers who use PathFlow to make their first open source contribution.</p>
         <a href={`${process.env.NEXT_PUBLIC_API_URL}/api/auth/github`}
            className="mt-8 inline-flex items-center gap-3 rounded-xl px-8 py-4 text-lg font-semibold text-[#001a42] transition-all hover:scale-105"
            style={{ backgroundColor: "#adc6ff", boxShadow: "0 0 30px -5px rgba(173, 198, 255, 0.4)" }}>
@@ -89,7 +89,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-white/10 px-6 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm text-[#c2c6d6]">© 2026 PatchFlow AI. Open Source under MIT.</p>
+          <p className="text-sm text-[#c2c6d6]">© 2026 PathFlow AI. Open Source under MIT.</p>
           <div className="flex gap-6 text-sm text-[#c2c6d6]">
             <a href="#" className="transition-colors hover:text-[#adc6ff]">Privacy</a>
             <a href="#" className="transition-colors hover:text-[#adc6ff]">Terms</a>

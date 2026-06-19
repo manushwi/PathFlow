@@ -8,7 +8,7 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PatchFlow - AI-Powered Open Source Workspace",
+  title: "PathFlow - AI-Powered Open Source Workspace",
   description: "Understand any repository, find the right issues, and ship PRs with AI.",
 };
 

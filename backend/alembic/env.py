@@ -18,7 +18,7 @@ if config.config_file_name is not None:
 
 database_url = settings.database_url
 if "your_" in database_url or "placeholder" in database_url:
-    database_url = "postgresql://patchflow:patchflow@localhost:5432/patchflow"
+    database_url = "postgresql://pathflow:pathflow@localhost:5432/pathflow"
 config.set_main_option("sqlalchemy.url",
     database_url.replace("postgresql://", "postgresql+psycopg2://"))
 target_metadata = Base.metadata

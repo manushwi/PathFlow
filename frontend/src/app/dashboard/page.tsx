@@ -114,7 +114,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-50 flex h-14 w-full items-center justify-between border-b border-white/10 bg-[#0a0a0a]/80 px-6 backdrop-blur-xl">
         <div className="flex items-center gap-8">
           <span className="text-lg font-semibold tracking-tighter text-[#e1e2ec]">
-            PatchFlow
+            PathFlow
           </span>
           <div className="relative hidden w-96 md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#c2c6d6]" />

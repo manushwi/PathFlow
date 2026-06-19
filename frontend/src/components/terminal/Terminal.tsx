@@ -14,7 +14,7 @@ interface TerminalPanelProps {
 
 export function TerminalPanel({ workspaceId }: TerminalPanelProps) {
   const [lines, setLines] = useState<TerminalLine[]>([
-    { type: "system", text: "PatchFlow Terminal — cwd: workspace root" },
+    { type: "system", text: "PathFlow Terminal — cwd: workspace root" },
     { type: "system", text: "" },
   ]);
   const [input, setInput] = useState("");

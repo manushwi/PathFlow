@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     celery_broker_url: str
     celery_result_backend: str
     environment: str = "development"
-    app_url: str = "https://patchflow.dev"
+    app_url: str = "https://pathflow.dev"
 
     class Config:
         env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), ".env")

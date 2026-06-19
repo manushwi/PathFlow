@@ -26,7 +26,7 @@ export function TopBar({ workspaceName, branch, showBack }: TopBarProps) {
         )}
         <span className="text-lg font-semibold tracking-tighter" style={{ color: "var(--foreground)" }}
               onClick={() => router.push("/dashboard")}>
-          PatchFlow
+          PathFlow
         </span>
         {workspaceName && (
           <>

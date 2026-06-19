@@ -1,4 +1,4 @@
-REPOS_BASE_PATH = "/tmp/patchflow_repos"
+REPOS_BASE_PATH = "/tmp/pathflow_repos"
 CHUNK_SIZE = 1500        # tokens per code chunk
 CHUNK_OVERLAP = 200
 EMBEDDING_DIM = 1536     # text-embedding-3-small

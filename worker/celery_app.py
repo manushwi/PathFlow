@@ -1,6 +1,6 @@
 from celery import Celery
 
-app = Celery("patchflow")
+app = Celery("pathflow")
 app.config_from_object("celeryconfig")
 app.conf.imports = (
     "tasks.clone_task",
